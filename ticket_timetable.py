@@ -85,7 +85,7 @@ class CTicketListLoader:
         ids = self.getTicketIdsInMilestone( milestone )
         query_args = copy.copy( query_args )
         query_args["id"] = "|".join( ["%d" % tid for tid in ids] )
-        query_args['milestone!'] = "***"
+        query_args['milestone!'] = "###"
 
         return self.exec_ticket_query(self, query_args)
 

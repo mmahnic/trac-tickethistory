@@ -45,7 +45,8 @@ class TaskBoardMacro(WikiMacroBase):
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
         milestone = query_args['milestone']
-        dbutils.require_ticket_fields( query_args, [self.estimation_field, "summary"] )
+        desired_fields = [self.estimation_field, "summary", "owner"]
+        dbutils.require_ticket_fields( query_args, desired_fields )
 
         lister = listers.CTicketListLoader( self.env.get_db_cnx() )
         lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, req, args )
@@ -59,23 +60,29 @@ class TaskBoardMacro(WikiMacroBase):
         board_entry = listers.TimetableEntry( board_time )
         timetable = listers.Timetable( start )
         timetable.entries = [ board_entry ]
-        lister.fillTicketTimetable(tickets, timetable, [self.estimation_field, "summary"] )
+        lister.fillTicketTimetable(tickets, timetable, desired_fields )
 
         result = []
         result.append( "||= New =||= In progress =||= Done =||= Summary =||" )
-        line_new  = "|| %s || || || %s ||"
-        line_wip  = "|| || %s || || %s ||"
-        line_done = "|| || || %s || %s ||"
+        line_new  = "|| %(id)s %(est)s || || || %(sum)s ||"
+        line_wip  = "|| || %(id)s %(est)s %(own)s || || %(sum)s ||"
+        line_done = "|| || || %(id)s %(est)s  || %(sum)s ||"
         board_tickets = sorted( board_entry.tickets, key=lambda t: t.tid )
         for t in board_tickets:
             if t.status in self.new_states: lineformat = line_new
             elif t.status in self.closed_states: lineformat = line_done
             else: lineformat = line_wip
+
+            v = {}
+            v["id"] = "#%d" % t.tid
             estimate = t.value.get(self.estimation_field)
-            estimate = ( "(%s)" % estimate ) if estimate is not None else ""
-            summary = t.value.get("summary") or ""
-            result.append( lineformat % ( "#%d %s" % ( t.tid, estimate ), summary ) )
-            # result.append( lineformat % ( t.value ) )
+            v["est"] = ( "(%s)" % estimate ) if estimate is not None else ""
+            v["sum"] = t.value.get("summary") or ""
+            owner = t.value.get("owner")
+            v["own"] = ( "[%s]" % owner ) if owner is not None else ""
+
+            # v["sum"] = "%s" % ( t.value ) # debug
+            result.append( lineformat % v )
 
         newtext = "\n".join( result )
         out = StringIO.StringIO()

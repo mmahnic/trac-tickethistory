@@ -39,7 +39,7 @@ def get_viewable_tickets(env, req, query_args):
 def require_ticket_fields( query_args, fieldnames ):
     for f in fieldnames:
         if not f in query_args:
-            query_args[ f + "!" ] = "***"
+            query_args[ f + "!" ] = "###"
 
 
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
