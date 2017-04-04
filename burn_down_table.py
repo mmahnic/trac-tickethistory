@@ -101,7 +101,7 @@ class BurnDownTableMacro(WikiMacroBase):
         fmtweekend = wikirow( cellcontent(c, fmt_dayoffcell) for c in cells )
 
         result = []
-        result.append( "||= Dan =||= Skupaj =||= Preostalo =||= Novo =||= V delu =||= Narejeno =||= Konec =||= Konec* =||" )
+        result.append( "||= Date =||= Total =||= Remain =||= New =||= WiP =||= Done =||= End =||= End* =||" )
 
         today = options['today']
         for entry in timetable.entries:
