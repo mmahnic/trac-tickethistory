@@ -94,19 +94,21 @@ class BurnDownTableMacro(WikiMacroBase):
             align_end = " " if c[-1] == " " else ""
             return align_start + (wrapformat % c.strip()) + align_end
         def wikirow( cells ):
-            return "||" + ( "||".join( cells ) ) + "||"
+            return "||" + ( "||".join( cells ) ) + "||" + "%s" + "||"
         cells = [ " %s ", " %.1f", " %.1f", " %.1f", " %.1f", " %.1f", " %s", " %s" ]
         fmtnormal  = wikirow( cells )
         fmttoday   = wikirow( cellcontent(c, fmt_todaycell) for c in cells )
         fmtweekend = wikirow( cellcontent(c, fmt_dayoffcell) for c in cells )
 
         result = []
-        result.append( "||= Date =||= Total =||= Remain =||= New =||= WiP =||= Done =||= End =||= End* =||" )
+        result.append( "||= Date =||= Total =||= Remain =||= New =||= WiP =||= Done =||= End =||= End* =||= =||" )
 
         def estimate(tinfo, default=1):
             v = tinfo.value_or( self.estimation_field, default )
             try: return float(v) if v is not None else default
             except: return default
+
+        dmin, dmax = self._getMinMaxEstimateDelta( timetable, starttime )
 
         today = options['today']
         for entry in timetable.entries:
@@ -129,10 +131,47 @@ class BurnDownTableMacro(WikiMacroBase):
             elif date.weekday() > 4: fmt = fmtweekend
             else: fmt = fmtnormal
 
-            result.append( fmt % (date, ptotal, premaining, pnew, pwip, pdone, enddate, enddate_wd ) )
+            result.append( fmt % (date, ptotal, premaining, pnew, pwip, pdone, enddate, enddate_wd,
+                    self._dayStateGraph( date, enddate_wd, dmin, dmax ) ) )
         result.append( "" )
 
         newtext = "\n".join( result )
         out = StringIO.StringIO()
         Formatter(self.env, formatter.context).format(newtext, out)
         return Markup(out.getvalue())
+
+    # calculate the limits for the "graph"
+    def _getMinMaxEstimateDelta( self, timetable, starttime ):
+        import workdays
+        dmin = 0
+        dmax = 0
+
+        def estimate(tinfo, default=1):
+            v = tinfo.value_or( self.estimation_field, default )
+            try: return float(v) if v is not None else default
+            except: return default
+
+        for entry in timetable.entries:
+            date = entry.endtime.date()
+            if date.weekday() > 4:
+                continue
+            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.closed_states )
+            ptotal = sum( estimate(t) for t in entry.tickets )
+            premaining = ptotal - pdone
+            enddate_wd = workdays.estimate_end_workdays( starttime, entry.endtime, ptotal, premaining )
+            if enddate_wd is None:
+                continue
+            delta = (enddate_wd.date() - date).days
+            if delta < dmin:
+                dmin = delta
+            if delta > dmax:
+                dmax = delta
+        return (dmin, dmax)
+
+    def _dayStateGraph( self, graphdate, enddate, dmin, dmax ):
+        if graphdate is None or enddate is None or enddate == "":
+            return ""
+        delta = (enddate - graphdate).days
+        # FIXME: can't insert {{{#!html}}} into a || table
+        # return '<div style="color:red;width:100px;" />'
+        return ("%d" % delta) if delta <= 0 else "+%d" % delta
