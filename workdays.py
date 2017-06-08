@@ -26,11 +26,15 @@ def _workday_diff( start, end ):
     return days + diff.seconds / 86400.0
 
 
-def adjusted_start( when ):
+def skip_weekend( when ):
     if when.weekday() <= 4:
         return when
     when += dt.timedelta( days = 2 - when.weekday() % 5 )
     return when.replace( hour=0, minute=0, second=0, microsecond=0 )
+
+
+def adjusted_start( when ):
+    return skip_weekend( when )
 
 
 def adjusted_end( when ):
@@ -60,5 +64,5 @@ def estimate_end_workdays( start, now, total, remaining ):
     # print days, "<-->", moredays, seconds
     # print "-->", nowStart, "..", enddate, "-", offdays
 
-    return adjusted_start( enddate + dt.timedelta( days = offdays ) )
+    return skip_weekend( enddate + dt.timedelta( days = offdays ) )
 
