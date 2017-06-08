@@ -2,15 +2,21 @@ import copy
 import re
 
 class TicketInfo:
-    def __init__(self, tid, time, status, milestone):
+    def __init__(self, ticket, time, status, milestone):
         self.time = time
-        self.tid = tid
+        self.ticket = ticket
         self.status = status
         self.milestone = milestone
         self.value = {} # other fields
 
+    def tid( self ):
+        return self.ticket['id'] if self.ticket is not None else None
+
+    def value_or( self, name, default=None):
+        return self.value[name] if name in self.value else default
+
     def __repr__(self):
-        return "(T %s, %s, %s, %s)" % ( self.tid, self.status, self.time, len(self.value) )
+        return "(T %s, %s, %s, %s)" % ( self.tid(), self.status, self.time, len(self.value) )
 
 
 class TimetableEntry:
@@ -49,8 +55,8 @@ class Timetable:
         prev_entry = None
         for entry in self.entries:
             if prev_entry is not None:
-                prev_tickets = { t.tid : t for t in prev_entry.tickets }
-                curr_tickets = { t.tid : t for t in entry.tickets }
+                prev_tickets = { t.tid() : t for t in prev_entry.tickets }
+                curr_tickets = { t.tid() : t for t in entry.tickets }
                 for tid,t in prev_tickets.items():
                     if tid not in curr_tickets:
                         entry.tickets.append( copy.copy( t ) )
@@ -160,9 +166,9 @@ class CTicketListLoader:
 
     # Add history entries for a single ticket to the timetable.
     def _generateTicketInfo( self, ticket, history, timetable ):
-        def addTicketToTimetableEntry( tid, time, state, tt_entry ):
+        def addTicketToTimetableEntry( ticket, time, state, tt_entry ):
             state = copy.copy( state ) # clone
-            ticket_info = TicketInfo( tid, time, state['status'], state['milestone'] )
+            ticket_info = TicketInfo( ticket, time, state['status'], state['milestone'] )
             del state['status']
             del state['milestone']
             ticket_info.value = state;
@@ -176,11 +182,11 @@ class CTicketListLoader:
                 break
             if entry != prev_entry:
                 if prev_entry is not None:
-                    addTicketToTimetableEntry( ticket['id'], hist_time, state, prev_entry )
+                    addTicketToTimetableEntry( ticket, hist_time, state, prev_entry )
                 prev_entry = entry
             state_change = history[hist_time]
             state.update( state_change )
 
         if prev_entry != None:
-            addTicketToTimetableEntry( ticket['id'], hist_time, state, prev_entry )
+            addTicketToTimetableEntry( ticket, hist_time, state, prev_entry )
 

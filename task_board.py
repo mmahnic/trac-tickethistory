@@ -67,14 +67,14 @@ class TaskBoardMacro(WikiMacroBase):
         line_new  = "|| %(id)s %(est)s || || || %(sum)s ||"
         line_wip  = "|| || %(id)s %(est)s %(own)s || || %(sum)s ||"
         line_done = "|| || || %(id)s %(est)s  || %(sum)s ||"
-        board_tickets = sorted( board_entry.tickets, key=lambda t: t.tid )
+        board_tickets = sorted( board_entry.tickets, key=lambda t: t.tid() )
         for t in board_tickets:
             if t.status in self.new_states: lineformat = line_new
             elif t.status in self.closed_states: lineformat = line_done
             else: lineformat = line_wip
 
             v = {}
-            v["id"] = "#%d" % t.tid
+            v["id"] = "#%d" % t.tid()
             estimate = t.value.get(self.estimation_field)
             v["est"] = ( "(%s)" % estimate ) if estimate is not None else ""
             v["sum"] = t.value.get("summary") or ""
