@@ -61,7 +61,7 @@ class BurnDownTableMacro(WikiMacroBase):
         req = formatter.req
 
         import ticket_timetable as listers
-        import dbutils
+        import dbutils, workdays
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
@@ -117,10 +117,13 @@ class BurnDownTableMacro(WikiMacroBase):
             pwip = ptotal - pnew - pdone
             premaining = ptotal - pdone
 
-            enddate = dbutils.estimate_end( starttime, entry.endtime, ptotal, premaining )
-            enddate = "" if enddate is None else enddate
-            enddate_wd = dbutils.estimate_end_workdays( starttime, entry.endtime, ptotal, premaining )
-            enddate_wd = "" if enddate_wd is None else enddate_wd
+            enddate = workdays.estimate_end( starttime, entry.endtime, ptotal, premaining )
+            enddate = "" if enddate is None else enddate.date()
+            if date.weekday() > 4:
+                enddate_wd = ""
+            else:
+                enddate_wd = workdays.estimate_end_workdays( starttime, entry.endtime, ptotal, premaining )
+                enddate_wd = "" if enddate_wd is None else enddate_wd.date()
 
             if date == today: fmt = fmttoday
             elif date.weekday() > 4: fmt = fmtweekend
