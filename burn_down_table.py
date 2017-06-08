@@ -103,12 +103,17 @@ class BurnDownTableMacro(WikiMacroBase):
         result = []
         result.append( "||= Date =||= Total =||= Remain =||= New =||= WiP =||= Done =||= End =||= End* =||" )
 
+        def estimate(tinfo, default=1):
+            v = tinfo.value_or( self.estimation_field, default )
+            try: return float(v) if v is not None else default
+            except: return default
+
         today = options['today']
         for entry in timetable.entries:
             date = entry.endtime.date()
-            pnew = sum( 1 for t in entry.tickets if t.status in self.new_states )
-            pdone = sum( 1 for t in entry.tickets if t.status in self.closed_states )
-            ptotal = sum( 1 for t in entry.tickets )
+            pnew = sum( estimate(t) for t in entry.tickets if t.status in self.new_states )
+            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.closed_states )
+            ptotal = sum( estimate(t) for t in entry.tickets )
             pwip = ptotal - pnew - pdone
             premaining = ptotal - pdone
 
