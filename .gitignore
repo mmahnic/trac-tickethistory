@@ -1,3 +1,4 @@
 xdata/
 *.swp
 *.swi
+*.pyc
