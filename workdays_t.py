@@ -22,7 +22,13 @@ def _parse_date( datestr ):
     return datetime(*strptime(datestr, "%Y-%m-%d")[0:5]).date()
 
 def _parse_datetime( datestr ):
-    return datetime(*strptime(datestr, "%Y-%m-%d %H:%M")[0:5])
+    if type(datestr) == type(""):
+        return datetime(*strptime(datestr, "%Y-%m-%d %H:%M")[0:5])
+    elif type(datestr) == type((1,2)):
+        return datetime(*datestr)
+    elif type(datestr) == type(dt.datetime(1900,1,1)):
+        return datestr
+    return None
 
 def _is_same_dt( d1, d2, numParts=5 ):
     return d1.timetuple()[:numParts] == d2.timetuple()[:numParts]
@@ -101,5 +107,23 @@ def shouldEstimateEndWorkdays():
     test( "2017-03-05 08:00", "2017-03-11 08:00", 2, 1, "2017-03-17 23:59" )
     test( "2017-03-04 08:00", "2017-03-12 08:00", 2, 1, "2017-03-17 23:59" )
 
+@test
+def shouldEstimateEndWorkdays2():
+    def test( d1, d2, total, remaining, dexp ):
+        d1 = _parse_datetime(d1)
+        d2 = _parse_datetime(d2)
+        dexp = _parse_datetime(dexp)
+        dres = estimate_end_workdays( d1, d2, total, remaining )
+        print "expected: %s, actual %s, %s" % (dexp, dres, _is_same_dt( dres, dexp, 3 ) )
+        if not _is_same_dt( dres, dexp ):
+            print "     diff:", dres - dexp
+
+    # Monday 2017-03-06
+    d1 = dt.datetime(2017, 03, 06, 8 )
+    d2 = dt.datetime(2017, 03, 13, 8 )
+    for done in xrange(1, 22, 5):
+        dexp = d2 + dt.timedelta( weeks=done )
+        print done, dt.timedelta( weeks=done ),
+        test( d1, d2, done+1, done, dexp )
 
 runTests()

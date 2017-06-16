@@ -48,21 +48,23 @@ def estimate_end_workdays( start, now, total, remaining ):
     done = total - remaining
     if done <= 0:
         return None
-    # print
-    # print "<--", start, "..", now
-    # print "<--", adjusted_start( start ), "..", adjusted_end( now )
     days = _workday_diff(adjusted_start(start), adjusted_end(now))
     if days <= 0:
         return None
+
     perday = float(done) / days
     moredays = remaining / perday
+
+    # skip weekends
+    # Note: days may be 1 off because of rounding, but we are ok with that
+    ( weeks, days ) = divmod(int(moredays), 5 )
+    moredays += weeks * 2
+    nowStart = adjusted_start( now )
+    if nowStart.weekday() + days > 4:
+        moredays += 2
+
     (seconds, moredays) = math.modf( moredays )
     seconds *= 86400.0
-    nowStart = adjusted_start( now )
     enddate = nowStart + dt.timedelta( days = moredays, seconds = seconds )
-    offdays = moredays - int(_workday_diff(nowStart, enddate))
-    # print days, "<-->", moredays, seconds
-    # print "-->", nowStart, "..", enddate, "-", offdays
-
-    return skip_weekend( enddate + dt.timedelta( days = offdays ) )
+    return enddate
 
