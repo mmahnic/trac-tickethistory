@@ -1,6 +1,12 @@
 import copy
 import re
 
+class TimetableConfig:
+    def __init__(self):
+        self.closed_states = [ "closed" ]
+        self.new_states = [ "new" ]
+        self.estimation_field = "tm_estimate"
+
 class TicketInfo:
     def __init__(self, ticket, time, status, milestone):
         self.time = time

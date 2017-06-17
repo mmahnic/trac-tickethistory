@@ -11,6 +11,40 @@ import StringIO
 import math
 import traceback
 
+class BoardRenderer:
+    def __init__( self, timetableConfig ):
+        self.tt_config = timetableConfig
+        self.heading   = "||= New =||= In progress =||= Done =||= Summary =||"
+        self.line_new  = "|| %(id)s %(est)s || || || %(sum)s ||"
+        self.line_wip  = "|| || %(id)s %(est)s %(own)s || || %(sum)s ||"
+        self.line_done = "|| || || %(id)s %(est)s  || %(sum)s ||"
+
+    def render( self, tickets, env, formatter ):
+        result = []
+        result.append( self.heading )
+        board_tickets = sorted( tickets, key=lambda t: t.tid() )
+        for t in board_tickets:
+            if t.status in self.tt_config.new_states: lineformat = self.line_new
+            elif t.status in self.tt_config.closed_states: lineformat = self.line_done
+            else: lineformat = self.line_wip
+
+            v = {}
+            v["id"] = "#%d" % t.tid()
+            estimate = t.value.get(self.tt_config.estimation_field)
+            v["est"] = ( "(%s)" % estimate ) if estimate is not None else ""
+            v["sum"] = t.value.get("summary") or ""
+            owner = t.value.get("owner")
+            v["own"] = ( "[%s]" % owner ) if owner is not None else ""
+
+            # v["sum"] = "%s" % ( t.value ) # debug
+            result.append( lineformat % v )
+
+        newtext = "\n".join( result )
+        out = StringIO.StringIO()
+        Formatter(env, formatter.context).format(newtext, out)
+        return Markup(out.getvalue())
+
+
 class TaskBoardMacro(WikiMacroBase):
     revision = "$Rev$"
     url = "$URL$"
@@ -34,18 +68,16 @@ class TaskBoardMacro(WikiMacroBase):
         return query_args
 
     def expand_macro(self, formatter, name, text, args):
-        self.estimation_field = "tm_estimate"
-        self.closed_states = [ "closed" ]
-        self.new_states = [ "new" ]
         req = formatter.req
 
         import ticket_timetable as listers
         import dbutils
+        self.tt_config = listers.TimetableConfig()
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
         milestone = query_args['milestone']
-        desired_fields = [self.estimation_field, "summary", "owner"]
+        desired_fields = [self.tt_config.estimation_field, "summary", "owner"]
         dbutils.require_ticket_fields( query_args, desired_fields )
 
         lister = listers.CTicketListLoader( self.env.get_db_cnx() )
@@ -62,29 +94,5 @@ class TaskBoardMacro(WikiMacroBase):
         timetable.entries = [ board_entry ]
         lister.fillTicketTimetable(tickets, timetable, desired_fields )
 
-        result = []
-        result.append( "||= New =||= In progress =||= Done =||= Summary =||" )
-        line_new  = "|| %(id)s %(est)s || || || %(sum)s ||"
-        line_wip  = "|| || %(id)s %(est)s %(own)s || || %(sum)s ||"
-        line_done = "|| || || %(id)s %(est)s  || %(sum)s ||"
-        board_tickets = sorted( board_entry.tickets, key=lambda t: t.tid() )
-        for t in board_tickets:
-            if t.status in self.new_states: lineformat = line_new
-            elif t.status in self.closed_states: lineformat = line_done
-            else: lineformat = line_wip
-
-            v = {}
-            v["id"] = "#%d" % t.tid()
-            estimate = t.value.get(self.estimation_field)
-            v["est"] = ( "(%s)" % estimate ) if estimate is not None else ""
-            v["sum"] = t.value.get("summary") or ""
-            owner = t.value.get("owner")
-            v["own"] = ( "[%s]" % owner ) if owner is not None else ""
-
-            # v["sum"] = "%s" % ( t.value ) # debug
-            result.append( lineformat % v )
-
-        newtext = "\n".join( result )
-        out = StringIO.StringIO()
-        Formatter(self.env, formatter.context).format(newtext, out)
-        return Markup(out.getvalue())
+        renderer = BoardRenderer(self.tt_config);
+        return renderer.render( board_entry.tickets, self.env, formatter )
