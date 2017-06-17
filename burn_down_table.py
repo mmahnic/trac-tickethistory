@@ -55,18 +55,16 @@ class BurnDownTableMacro(WikiMacroBase):
 
 
     def expand_macro(self, formatter, name, text, args):
-        self.estimation_field = "tm_estimate"
-        self.closed_states = [ "closed" ]
-        self.new_states = [ "new" ]
         req = formatter.req
 
         import ticket_timetable as listers
         import dbutils, workdays
+        self.tt_config = listers.TimetableConfig()
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
         milestone = query_args['milestone']
-        dbutils.require_ticket_fields( query_args, [self.estimation_field] )
+        dbutils.require_ticket_fields( query_args, [self.tt_config.estimation_field] )
 
         lister = listers.CTicketListLoader( self.env.get_db_cnx() )
         lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, req, args )
@@ -85,7 +83,7 @@ class BurnDownTableMacro(WikiMacroBase):
             timetable.entries += [ listers.TimetableEntry( time_next ) ]
             time_next += delta
 
-        lister.fillTicketTimetable(tickets, timetable, [self.estimation_field] )
+        lister.fillTicketTimetable(tickets, timetable, [self.tt_config.estimation_field] )
 
         fmt_todaycell = "**%s**"
         fmt_dayoffcell = "[[span(style=color: #c0c0c0, %s)]]"
@@ -104,7 +102,7 @@ class BurnDownTableMacro(WikiMacroBase):
         result.append( "||= Date =||= Total =||= Remain =||= New =||= WiP =||= Done =||= End =||= End* =||= =||" )
 
         def estimate(tinfo, default=1):
-            v = tinfo.value_or( self.estimation_field, default )
+            v = tinfo.value_or( self.tt_config.estimation_field, default )
             try: return float(v) if v is not None else default
             except: return default
 
@@ -113,8 +111,8 @@ class BurnDownTableMacro(WikiMacroBase):
         today = options['today']
         for entry in timetable.entries:
             date = entry.endtime.date()
-            pnew = sum( estimate(t) for t in entry.tickets if t.status in self.new_states )
-            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.closed_states )
+            pnew = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.new_states )
+            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.closed_states )
             ptotal = sum( estimate(t) for t in entry.tickets )
             pwip = ptotal - pnew - pdone
             premaining = ptotal - pdone
@@ -147,7 +145,7 @@ class BurnDownTableMacro(WikiMacroBase):
         dmax = 0
 
         def estimate(tinfo, default=1):
-            v = tinfo.value_or( self.estimation_field, default )
+            v = tinfo.value_or( self.tt_config.estimation_field, default )
             try: return float(v) if v is not None else default
             except: return default
 
@@ -155,7 +153,7 @@ class BurnDownTableMacro(WikiMacroBase):
             date = entry.endtime.date()
             if date.weekday() > 4:
                 continue
-            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.closed_states )
+            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.closed_states )
             ptotal = sum( estimate(t) for t in entry.tickets )
             premaining = ptotal - pdone
             enddate_wd = workdays.estimate_end_workdays( starttime, entry.endtime, ptotal, premaining )
