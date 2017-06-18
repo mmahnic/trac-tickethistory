@@ -1,4 +1,4 @@
-from workdays import *
+from ..workdays import *
 from datetime import datetime, timedelta
 from time import strptime
 import math
