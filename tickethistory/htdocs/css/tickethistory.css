@@ -14,11 +14,11 @@
 
 .tickethist-board .note {
    width: 100%;
-   height: 7vh;
+   height: 5vh;
    margin: 1px;
-   border: 1px solid orange;
+   border: 1px solid #ffe072;
    overflow: hidden;
-   background-color: yellow;
+   background-color: #fcffb2;
 }
 
 .tickethist-board .note-head {
@@ -64,6 +64,7 @@
 
    .tickethist-board .note {
       width: 14vw;
+      height: 7vh;
    }
 }
 
