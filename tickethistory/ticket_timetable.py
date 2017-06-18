@@ -19,7 +19,15 @@ class TicketInfo:
         return self.ticket['id'] if self.ticket is not None else None
 
     def value_or( self, name, default=None):
-        return self.value[name] if name in self.value else default
+        if name in self.value:
+            return self.value[name]
+        if name == "status":
+            return self.status if self.status is not None else default
+        if name == "milestone":
+            return self.milestone if self.milestone is not None else default
+        if name in self.ticket:
+            return self.ticket[name]
+        return default
 
     def __repr__(self):
         return "(T %s, %s, %s, %s)" % ( self.tid(), self.status, self.time, len(self.value) )
