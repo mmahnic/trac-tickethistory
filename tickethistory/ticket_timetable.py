@@ -83,8 +83,6 @@ class CTicketListLoader:
 
 	def invalid(msg) : raise Exception( msg )
 
-        # exec_ticket_query should call trac.ticket.query.Query.execute and return its results.
-        self.exec_ticket_query = lambda self, query_args: invalid( "exec_ticket_query not set" )
         self.timestamp_to_datetime = lambda tstamp: invalid( "timestamp_to_datetime not set" )
 
 
