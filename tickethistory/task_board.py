@@ -144,14 +144,10 @@ class TaskBoardMacro(WikiMacroBase):
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
-        # milestone = query_args['milestone']
         desired_fields = [self.tt_config.estimation_field, "summary", "owner"]
-        # dbutils.require_ticket_fields( query_args, desired_fields )
 
         lister = listers.CTicketListLoader( self.env.get_db_cnx() )
-        # lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, request, args )
         lister.timestamp_to_datetime = lambda ts: from_timestamp( ts )
-        # tickets = lister.queryTicketsInMilestone( milestone, query_args )
         tickets = retriever.retrieve( query_args, desired_fields )
         if 'date' in options:
             board_time = to_datetime(dt.datetime.combine(options['date'], dt.time.max))

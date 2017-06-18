@@ -10,6 +10,11 @@ def to_query_string( args ):
 
 
 class Retriever(object):
+    """
+    Retrieve the tickets from the database using the arguments compatible with
+    the TicketQuery macro.
+    """
+
     def __init__(self, env, request):
         self.env = env
         self.request = request
@@ -48,6 +53,12 @@ class Retriever(object):
 
 
 class MilestoneRetriever(Retriever):
+    """
+    Retrieve the tickets that were at any time part of the milestone from the
+    database using the arguments compatible with the TicketQuery macro.  The
+    arguments for retrieve() must contain the 'milestone' attribute.
+    """
+
     def __init__(self, env, request):
         super(MilestoneRetriever, self).__init__(env, request)
 
