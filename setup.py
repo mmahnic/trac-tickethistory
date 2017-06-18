@@ -24,7 +24,7 @@ setup(
     packages = find_packages(exclude=['ez_setup', 'examples', 'tests', 'test']),
     package_data = {
         'tickethistory': [
-            # 'templates/*.html',
+            'templates/*.html',
             'htdocs/css/*.css',
             'htdocs/css/images/*.png',
             'htdocs/js/*.js',

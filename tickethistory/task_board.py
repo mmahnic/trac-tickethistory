@@ -1,11 +1,14 @@
-from genshi.core import Markup
+from trac.core import implements, TracError
 from trac.wiki.macros import WikiMacroBase
 from trac.wiki import Formatter
 from trac.wiki.api import parse_args
 from trac.util.datefmt import from_utimestamp as from_timestamp, to_datetime, to_utimestamp as to_timestamp
+from trac.web.chrome import ITemplateProvider, Chrome, add_stylesheet, add_script, add_script_data
+from genshi.core import Markup
 
 import datetime as dt
 import time
+import os
 
 import StringIO
 import math
@@ -70,11 +73,11 @@ class HtmlBoardRenderer:
 
         columns = self.splitTicketsIntoColumns( tickets )
 
-        result = []
+        result = ['<div class="tickethist-board">']
         for ic,colTickets in enumerate(columns):
-            result.append( '<div class="col-4" style="float: left; width: 30vw">' )
+            result.append( '<div class="col-4 column">' )
             result.append( env.base_url )
-            result.append( '<h2 class="columnTitle">%s</h2>' % self.columnTitles[ic] )
+            result.append( '<h2 class="column-title">%s</h2>' % self.columnTitles[ic] )
             for t in colTickets:
                 # address = env.href( 'ticket', t.tid() )
                 nameLink = ticketIdAddr( t )
@@ -82,20 +85,24 @@ class HtmlBoardRenderer:
                 if estimate != "": estimate = "(%s)" % estimate
                 owner = t.value_or( "owner", "" ) if isInProgress( t ) else ""
                 summary = t.value_or( "summary", "" )
-                noteContent = '''<div class="ticket-note"
-                        style="width: 14.5vw; height: 7vh; overflow: hidden; border: 1px solid black;">
-                    <span style="background-color:#f0f0f0; font-size:120%%"> %s %s %s </span>
+                noteContent = '''<div class="note">
+                    <span class="note-head">
+                      <span class="ticket">%s</span>
+                      <span class="estimate">%s</span>
+                      <span class="owner">%s</span>
+                    </span>
                     &nbsp;%s
                     </div>''' % ( nameLink, estimate, owner, summary )
                 result.append( noteContent )
             result.append( '</div>' )
 
+        result.append( '</div>' )
+
         return Markup( "\n".join( result ) )
 
 
 class TaskBoardMacro(WikiMacroBase):
-    revision = "$Rev$"
-    url = "$URL$"
+    implements(ITemplateProvider)
 
     def _parse_options( self, content ):
         options = {}
@@ -115,12 +122,22 @@ class TaskBoardMacro(WikiMacroBase):
                 query_args[key] = options[key]
         return query_args
 
+    def get_templates_dirs(self):
+        from pkg_resources import resource_filename
+        return [resource_filename('tickethistory', 'templates')]
+
+    def get_htdocs_dirs(self):
+        from pkg_resources import resource_filename
+        return [('tickethistory', os.path.abspath(resource_filename('tickethistory', 'htdocs')))]
+
     def expand_macro(self, formatter, name, text, args):
-        req = formatter.req
+        request = formatter.req
 
         import ticket_timetable as listers
         import dbutils
         self.tt_config = listers.TimetableConfig()
+
+        add_stylesheet(request, 'tickethistory/css/tickethistory.css')
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
@@ -129,7 +146,7 @@ class TaskBoardMacro(WikiMacroBase):
         dbutils.require_ticket_fields( query_args, desired_fields )
 
         lister = listers.CTicketListLoader( self.env.get_db_cnx() )
-        lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, req, args )
+        lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, request, args )
         lister.timestamp_to_datetime = lambda ts: from_timestamp( ts )
         tickets = lister.queryTicketsInMilestone( milestone, query_args )
         if 'date' in options:
