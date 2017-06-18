@@ -55,21 +55,24 @@ class BurnDownTableMacro(WikiMacroBase):
 
 
     def expand_macro(self, formatter, name, text, args):
-        req = formatter.req
+        request = formatter.req
 
         import ticket_timetable as listers
         import dbutils, workdays
         self.tt_config = listers.TimetableConfig()
+        retriever = dbutils.MilestoneRetriever(self.env, request)
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
-        milestone = query_args['milestone']
-        dbutils.require_ticket_fields( query_args, [self.tt_config.estimation_field] )
+        # milestone = query_args['milestone']
+        desired_fields = [self.tt_config.estimation_field]
+        # dbutils.require_ticket_fields( query_args, [self.tt_config.estimation_field] )
 
         lister = listers.CTicketListLoader( self.env.get_db_cnx() )
-        lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, req, args )
+        # lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, req, args )
         lister.timestamp_to_datetime = lambda ts: from_timestamp( ts )
-        tickets = lister.queryTicketsInMilestone( milestone, query_args )
+        # tickets = lister.queryTicketsInMilestone( milestone, query_args )
+        tickets = retriever.retrieve( query_args, desired_fields )
 
         starttime = to_datetime(dt.datetime.combine(options['startdate'], dt.time.min))
         time_first = to_datetime(dt.datetime.combine(options['startdate'], dt.time.max))

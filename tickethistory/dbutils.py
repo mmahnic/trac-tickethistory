@@ -1,44 +1,76 @@
-from trac.util.text import unicode_urlencode
 from trac.ticket.query import Query
 import copy
 
 
-def _encode_trac_query( query_args ):
-    return unicode_urlencode(query_args) \
-	.replace('%21=', '!=') \
-        .replace('%21%7E=', '!~=') \
-        .replace('%7E=', '~=') \
-        .replace('%5E=', '^=') \
-        .replace('%24=', '$=') \
-        .replace('%21%5E=', '!^=') \
-        .replace('%21%24=', '!$=') \
-        .replace('%7C', '|') \
-        .replace('+', ' ') \
-        .replace('%23', '#') \
-        .replace('%28', '(') \
-        .replace('%29', ')')
+def _clean_args( args ):
+    return args
+
+def to_query_string( args ):
+    return '&'.join('%s=%s' % item for item in args.iteritems())
 
 
-def get_viewable_tickets(env, req, query_args):
-    # set maximum number of returned tickets to 0 to get all tickets at once
-    query_args = copy.copy( query_args )
-    query_args['max'] = 0
-    query_string = _encode_trac_query( query_args )
-    env.log.debug("query_string: %s", query_string)
-    query = Query.from_string(env, query_string)
-
-    tickets = query.execute(req)
-
-    tickets = [t for t in tickets
-               if ('TICKET_VIEW' or 'TICKET_VIEW_CC')
-               in req.perm('ticket', t['id'])]
-
-    return tickets
+class Retriever(object):
+    def __init__(self, env, request):
+        self.env = env
+        self.request = request
+        self.vieableOnly = False
 
 
-def require_ticket_fields( query_args, fieldnames ):
-    for f in fieldnames:
-        if not f in query_args:
-            query_args[ f + "!" ] = "###"
+    def get_tickets(self, query_args, extra_columns=None):
+        # set maximum number of returned tickets to 0 to get all tickets at once
+        query_args = copy.copy( query_args )
+        if not 'max' in query_args:
+            query_args['max'] = 0
+        if extra_columns is not None:
+            for f in extra_columns:
+                if not f in query_args:
+                    query_args[ f + "!" ] = "###"
+        self.env.log.debug("Retrieve: %s", query_args)
+        query_string = to_query_string( _clean_args(query_args) )
+
+        query = Query.from_string(self.env, query_string)
+        return query.execute(self.request)
+
+
+    def get_viewable_tickets(self, query_args, extra_columns=None):
+        tickets = self.get_tickets( query_args, extra_columns )
+        tickets = [t for t in tickets
+                   if ('TICKET_VIEW' or 'TICKET_VIEW_CC')
+                   in self.request.perm('ticket', t['id'])]
+        return tickets
+
+
+    def retrieve( self, query_args, extra_columns=None ):
+        if self.vieableOnly:
+            return self.get_viewable_tickets( query_args, extra_columns )
+        else:
+            return self.get_tickets( query_args, extra_columns )
+
+
+class MilestoneRetriever(Retriever):
+    def __init__(self, env, request):
+        super(MilestoneRetriever, self).__init__(env, request)
+
+
+    def get_ticket_ids_in_milestone( self, milestone ):
+        database = self.env.get_db_cnx()
+        tid_cursor = database.cursor()
+        tid_cursor.execute("SELECT "
+            "DISTINCT t.id "
+            "FROM ticket t LEFT JOIN ticket_change c "
+            "ON c.ticket = t.id "
+            "  WHERE (t.milestone=%s OR (field='milestone' AND (c.oldvalue=%s OR c.newvalue=%s) ) )"
+            "", [ milestone, milestone, milestone ])
+
+        return sorted( [int(row[0]) for row in tid_cursor] )
+
+
+    def retrieve( self, query_args, extra_columns=None ):
+        milestone = query_args['milestone']
+        ids = self.get_ticket_ids_in_milestone( milestone )
+        query_args = copy.copy( query_args )
+        query_args["id"] = "|".join( ["%d" % tid for tid in ids] )
+
+        return super(MilestoneRetriever, self).retrieve( query_args, extra_columns )
 
 

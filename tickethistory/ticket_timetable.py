@@ -80,28 +80,6 @@ class CTicketListLoader:
         self.timestamp_to_datetime = lambda tstamp: invalid( "timestamp_to_datetime not set" )
 
 
-    def getTicketIdsInMilestone( self, milestone ):
-        tid_cursor = self.database.cursor()
-        tid_cursor.execute("SELECT "
-            "DISTINCT t.id "
-            "FROM ticket t LEFT JOIN ticket_change c "
-            "ON c.ticket = t.id "
-            "  WHERE (t.milestone=%s OR (field='milestone' AND (c.oldvalue=%s OR c.newvalue=%s) ) )"
-            "", [ milestone, milestone, milestone ])
-
-        return sorted( [int(row[0]) for row in tid_cursor] )
-
-
-    # @Returns the result of self.exec_ticket_query for the tickets
-    def queryTicketsInMilestone( self, milestone, query_args ):
-        ids = self.getTicketIdsInMilestone( milestone )
-        query_args = copy.copy( query_args )
-        query_args["id"] = "|".join( ["%d" % tid for tid in ids] )
-        query_args['milestone!'] = "###"
-
-        return self.exec_ticket_query(self, query_args)
-
-
     # @p tickets - a list of dictionaries as returned by trac.ticket.query.Query.execute
     # @p timetable - Timetable with a list of TimetableEntry instances
     # @p fieldNames - a list of fields to register in TicketInfo.field (status

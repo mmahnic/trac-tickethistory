@@ -130,25 +130,29 @@ class TaskBoardMacro(WikiMacroBase):
         from pkg_resources import resource_filename
         return [('tickethistory', os.path.abspath(resource_filename('tickethistory', 'htdocs')))]
 
-    def expand_macro(self, formatter, name, text, args):
+    def expand_macro(self, formatter, name, text):
         request = formatter.req
+        self.env.log.debug("TaskBoardMacro TEXT %s", text)
+        self.env.log.debug("TaskBoardMacro ARGS %s", request.args)
 
         import ticket_timetable as listers
         import dbutils
         self.tt_config = listers.TimetableConfig()
+        retriever = dbutils.MilestoneRetriever(self.env, request)
 
         add_stylesheet(request, 'tickethistory/css/tickethistory.css')
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
-        milestone = query_args['milestone']
+        # milestone = query_args['milestone']
         desired_fields = [self.tt_config.estimation_field, "summary", "owner"]
-        dbutils.require_ticket_fields( query_args, desired_fields )
+        # dbutils.require_ticket_fields( query_args, desired_fields )
 
         lister = listers.CTicketListLoader( self.env.get_db_cnx() )
-        lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, request, args )
+        # lister.exec_ticket_query = lambda x, args: dbutils.get_viewable_tickets( self.env, request, args )
         lister.timestamp_to_datetime = lambda ts: from_timestamp( ts )
-        tickets = lister.queryTicketsInMilestone( milestone, query_args )
+        # tickets = lister.queryTicketsInMilestone( milestone, query_args )
+        tickets = retriever.retrieve( query_args, desired_fields )
         if 'date' in options:
             board_time = to_datetime(dt.datetime.combine(options['date'], dt.time.max))
         else:
