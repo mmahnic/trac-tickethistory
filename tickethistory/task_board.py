@@ -14,6 +14,12 @@ import StringIO
 import math
 import traceback
 
+
+class ColumnInfo:
+    def __init__( self, title, states ):
+        self.title = title
+        self.states = states
+
 class TracMarkupBoardRenderer:
     def __init__( self, timetableConfig ):
         self.tt_config = timetableConfig
@@ -49,19 +55,37 @@ class TracMarkupBoardRenderer:
 
 
 class HtmlBoardRenderer:
-    def __init__( self, timetableConfig ):
+    def __init__( self, timetableConfig, columns=None ):
         self.tt_config = timetableConfig
-        self.columnTitles = [ "New", "In progress", "Done" ]
+        self.columns = columns
+        if self.columns is None:
+            self.columns = [
+                    ColumnInfo( "New", timetableConfig.new_states ),
+                    ColumnInfo( "In progress", "*" ),
+                    ColumnInfo( "Done", timetableConfig.closed_states ) ]
+
+        # All the unmentioned states go to this column. The defult column is
+        # the first column where ColumnInfo.states="*"
+        self.defaultColumn = None
+        for col in self.columns:
+            if type(col.states) == type("") and col.states == "*":
+                col.states = []
+                self.defaultColumn = col
+                break
 
     def splitTicketsIntoColumns( self, tickets ):
-        tnew = []
-        twip = []
-        tdone = []
+        res = [ [] for c in self.columns ]
+        try: idefault = self.columns.index( self.defaultColumn )
+        except ValueError: idefault = -1
         for t in tickets:
-            if t.status in self.tt_config.new_states: tnew.append( t )
-            elif t.status in self.tt_config.closed_states: tdone.append( t )
-            else: twip.append( t )
-        return (tnew, twip, tdone)
+            found = False
+            for ic,column in enumerate(self.columns):
+                if t.status in column.states:
+                    res[ic].append(t)
+                    found = True
+            if not found and idefault >= 0:
+                res[idefault].append( t )
+        return res
 
     def render( self, tickets, env, formatter ):
         tmpl = '<a class="%(status)s ticket" href="%(href)s" title="%(type)s: %(summary)s (%(status)s)">#%(id)d</a>'
@@ -77,7 +101,7 @@ class HtmlBoardRenderer:
         for ic,colTickets in enumerate(columns):
             result.append( '<div class="col-4 column">' )
             result.append( env.base_url )
-            result.append( '<h2 class="column-title">%s</h2>' % self.columnTitles[ic] )
+            result.append( '<h2 class="column-title">%s</h2>' % self.columns[ic].title )
             for t in colTickets:
                 # address = env.href( 'ticket', t.tid() )
                 nameLink = ticketIdAddr( t )
