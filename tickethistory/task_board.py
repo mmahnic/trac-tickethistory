@@ -65,6 +65,8 @@ class HtmlBoardRenderer:
     Render the task board as HTML.
     """
 
+    tid_tmpl = '<a class="%(status)s ticket" href="%(href)s" title="%(type)s: %(summary)s (%(status)s)">#%(id)d</a>'
+
     def __init__( self, timetableConfig, columns=None ):
         self.tt_config = timetableConfig
         self.columns = columns
@@ -97,10 +99,11 @@ class HtmlBoardRenderer:
                 res[idefault].append( t )
         return res
 
+    @staticmethod
+    def _ticketIdAddr( ticketInfo ):
+        return HtmlBoardRenderer.tid_tmpl % ticketInfo.ticket
+
     def render( self, tickets, env, formatter ):
-        tmpl = '<a class="%(status)s ticket" href="%(href)s" title="%(type)s: %(summary)s (%(status)s)">#%(id)d</a>'
-        def ticketIdAddr( ticketInfo ):
-            return tmpl % ticketInfo.ticket
         add_stylesheet(formatter.req, 'tickethistory/css/tickethistory.css')
 
         def isInProgress( ticketInfo ):
@@ -116,7 +119,7 @@ class HtmlBoardRenderer:
             result.append( '<h2 class="column-title">%s</h2>' % self.columns[ic].title )
             for t in colTickets:
                 # address = env.href( 'ticket', t.tid() )
-                nameLink = ticketIdAddr( t )
+                nameLink = HtmlBoardRenderer._ticketIdAddr( t )
                 estimate = t.value_or(self.tt_config.estimation_field, "")
                 if estimate != "": estimate = "(%s)" % estimate
                 owner = t.value_or( "owner", "" ) if isInProgress( t ) else ""
