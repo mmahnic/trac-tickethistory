@@ -16,6 +16,7 @@ import os
 import StringIO
 import math
 import traceback
+from tickethistory import options, dbutils, ticket_timetable as history
 
 
 class ColumnInfo:
@@ -141,26 +142,13 @@ class HtmlBoardRenderer:
         return Markup( "\n".join( result ) )
 
 
+class TaskBoardOptions(options.OptionRegistry):
+    def __init__(self):
+        super(TaskBoardOptions, self).__init__([])
+
+
 class TaskBoardMacro(WikiMacroBase):
     implements(ITemplateProvider)
-
-    def _parse_options( self, content ):
-        options = {}
-        _, parsed_options = parse_args(content, strict=False)
-        options.update(parsed_options)
-
-        return options
-
-    def _verify_options( self, options ):
-        return options
-
-    def _extract_query_args( self, options ):
-        AVAILABLE_OPTIONS = []
-        query_args = {}
-        for key in options.keys():
-            if not key in AVAILABLE_OPTIONS:
-                query_args[key] = options[key]
-        return query_args
 
     def get_templates_dirs(self):
         from pkg_resources import resource_filename
@@ -170,19 +158,24 @@ class TaskBoardMacro(WikiMacroBase):
         from pkg_resources import resource_filename
         return [('tickethistory', os.path.abspath(resource_filename('tickethistory', 'htdocs')))]
 
-    def expand_macro(self, formatter, name, text):
+    def expand_macro(self, formatter, name, text, args):
         request = formatter.req
-        self.env.log.debug("TaskBoardMacro TEXT %s", text)
-        self.env.log.debug("TaskBoardMacro ARGS %s", request.args)
+        # self.env.log.debug("TaskBoardMacro TEXT %s", text)
+        # self.env.log.debug("TaskBoardMacro ARGS %s", args)
 
-        import ticket_timetable as history
-        import dbutils
         self.tt_config = history.TimetableConfig()
         retriever = dbutils.MilestoneRetriever(self.env, request)
 
-        options = self._verify_options( self._parse_options( text ) )
-        query_args = self._extract_query_args( options )
+        optionReg = TaskBoardOptions()
+        optionReg.set_macro_params(text)
+        optionReg.set_url_params(request.args)
+        optionReg.verify()
+        options = optionReg.options()
+        query_args = optionReg.query_args()
+
         desired_fields = [self.tt_config.estimation_field, "summary", "owner"]
+        # self.env.log.debug("TaskBoardMacro OPTIONS %s", options)
+        # self.env.log.debug("TaskBoardMacro QUERY %s", query_args)
 
         builder = history.HistoryBuilder( self.env.get_db_cnx() )
         builder.timestamp_to_datetime = lambda ts: from_timestamp( ts )
