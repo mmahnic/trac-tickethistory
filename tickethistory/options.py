@@ -27,6 +27,9 @@ class OptionRegistry(object):
             options.update( args )
         return options
 
+    def get_parameter_sets(self):
+        return (self.iniParams, self.macroParams, self.urlParams)
+
     def set_ini_params( self, params, useStrictParsing=False ):
         if type(params) == type("") or type(params) == unicode:
             self.iniParams = OptionRegistry._parseArgs(params, useStrictParsing)
@@ -47,14 +50,14 @@ class OptionRegistry(object):
 
     def all_arguments( self ):
         options = {}
-        for params in (self.iniParams, self.macroParams, self.urlParams):
+        for params in self.get_parameter_sets():
             if params is not None:
                 options.update(params)
         return options
 
     def options( self ):
         options = {}
-        for params in (self.iniParams, self.macroParams, self.urlParams):
+        for params in self.get_parameter_sets():
             if params is not None:
                 for k,v in params.iteritems():
                     if k in self.realOptions:
@@ -63,7 +66,7 @@ class OptionRegistry(object):
 
     def query_args( self ):
         options = {}
-        for params in (self.iniParams, self.macroParams, self.urlParams):
+        for params in self.get_parameter_sets():
             if params is not None:
                 for k,v in params.iteritems():
                     # "page" is in the url params by default, but breaks Query.

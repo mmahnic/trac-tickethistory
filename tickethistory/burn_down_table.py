@@ -1,72 +1,71 @@
 ## Copyright (c) Marko Mahnič. All rights reserved.
 ## Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+import time
+import StringIO
+import math
+import traceback
+import datetime as dt
+
 from genshi.core import Markup
 from trac.wiki.macros import WikiMacroBase
 from trac.wiki import Formatter
 from trac.wiki.api import parse_args
 from trac.util.datefmt import from_utimestamp as from_timestamp, to_datetime, to_utimestamp as to_timestamp
 from trac.core import TracError
+from tickethistory import options, dbutils, workdays, ticket_timetable as history
 
-import datetime as dt
-import time
+class BurnDownTableOptions(options.OptionRegistry):
+    def __init__(self):
+        super(BurnDownTableOptions, self).__init__(["startdate", "enddate", "today"])
+        self._overrides = None
 
-import StringIO
-import math
-import traceback
 
-class BurnDownTableMacro(WikiMacroBase):
-    revision = "$Rev$"
-    url = "$URL$"
+    def get_parameter_sets(self):
+        return (self.iniParams, self.macroParams, self.urlParams, self._overrides)
 
-    def _parse_options( self, content ):
-        options = {}
-        _, parsed_options = parse_args(content, strict=False)
-        options.update(parsed_options)
+
+    def apply_defaults(self):
+        self._overrides = {}
+        options = self.options()
 
         def parse_date( datestr ):
             return dt.datetime(*time.strptime(datestr, "%Y-%m-%d")[0:5]).date()
 
         for name in [ "startdate", "enddate", "today" ]:
             if name in options:
-                options[name] = parse_date( options.get(name) )
+                self._overrides[name] = parse_date( options.get(name) )
 
+        options = self.options()
         today = dt.datetime.now().date()
-        options['enddate'] = options.get('enddate') or today
-        options['today'] = options.get('today') or today
-
-        return options
+        self._overrides['enddate'] = options.get('enddate') or today
+        self._overrides['today'] = options.get('today') or today
 
 
-    def _verify_options( self, options ):
+    def verify(self):
+        options = self.options()
         if not options.get('startdate'):
             raise TracError("No start date specified!")
 
         if (options['startdate'] >= options['enddate']):
             options['enddate'] = options['startdate'] + dt.timedelta(days=1)
 
-        return options
 
-
-    def _extract_query_args( self, options ):
-        AVAILABLE_OPTIONS = [ "starttdate", "enddate", "today" ]
-        query_args = {}
-        for key in options.keys():
-            if not key in AVAILABLE_OPTIONS:
-                query_args[key] = options[key]
-        return query_args
-
-
+class BurnDownTableMacro(WikiMacroBase):
     def expand_macro(self, formatter, name, text, args):
         request = formatter.req
 
-        import ticket_timetable as history
-        import dbutils, workdays
         self.tt_config = history.TimetableConfig()
         retriever = dbutils.MilestoneRetriever(self.env, request)
 
-        options = self._verify_options( self._parse_options( text ) )
-        query_args = self._extract_query_args( options )
+        optionReg = BurnDownTableOptions()
+        optionReg.set_macro_params(text)
+        optionReg.set_url_params(request.args)
+        optionReg.apply_defaults()
+        optionReg.verify()
+        options = optionReg.options()
+        query_args = optionReg.query_args()
+
         desired_fields = [self.tt_config.estimation_field]
 
         builder = history.HistoryBuilder( self.env.get_db_cnx() )

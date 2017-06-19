@@ -1,6 +1,13 @@
 ## Copyright (c) Marko Mahnič. All rights reserved.
 ## Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
+import time
+import os
+import StringIO
+import math
+import traceback
+import datetime as dt
+
 from trac.core import implements, TracError
 from trac.wiki.macros import WikiMacroBase
 from trac.wiki import Formatter
@@ -8,16 +15,7 @@ from trac.wiki.api import parse_args
 from trac.util.datefmt import from_utimestamp as from_timestamp, to_datetime, to_utimestamp as to_timestamp
 from trac.web.chrome import ITemplateProvider, Chrome, add_stylesheet, add_script, add_script_data
 from genshi.core import Markup
-
-import datetime as dt
-import time
-import os
-
-import StringIO
-import math
-import traceback
 from tickethistory import options, dbutils, ticket_timetable as history
-
 
 class ColumnInfo:
     def __init__( self, title, states ):
