@@ -60,17 +60,17 @@ class BurnDownTableMacro(WikiMacroBase):
     def expand_macro(self, formatter, name, text, args):
         request = formatter.req
 
-        import ticket_timetable as listers
+        import ticket_timetable as history
         import dbutils, workdays
-        self.tt_config = listers.TimetableConfig()
+        self.tt_config = history.TimetableConfig()
         retriever = dbutils.MilestoneRetriever(self.env, request)
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
         desired_fields = [self.tt_config.estimation_field]
 
-        lister = listers.CTicketListLoader( self.env.get_db_cnx() )
-        lister.timestamp_to_datetime = lambda ts: from_timestamp( ts )
+        builder = history.HistoryBuilder( self.env.get_db_cnx() )
+        builder.timestamp_to_datetime = lambda ts: from_timestamp( ts )
         tickets = retriever.retrieve( query_args, desired_fields )
 
         starttime = to_datetime(dt.datetime.combine(options['startdate'], dt.time.min))
@@ -78,14 +78,14 @@ class BurnDownTableMacro(WikiMacroBase):
         time_end = to_datetime(dt.datetime.combine(options['enddate'], dt.time.max))
         delta = dt.timedelta(days=1)
 
-        timetable = listers.Timetable( starttime )
-        timetable.entries = [ listers.TimetableEntry( time_first ) ]
+        timetable = history.Timetable( starttime )
+        timetable.entries = [ history.TimetableEntry( time_first ) ]
         time_next = time_first + delta
         while time_next <= time_end:
-            timetable.entries += [ listers.TimetableEntry( time_next ) ]
+            timetable.entries += [ history.TimetableEntry( time_next ) ]
             time_next += delta
 
-        lister.fillTicketTimetable(tickets, timetable, [self.tt_config.estimation_field] )
+        builder.fillTicketTimetable(tickets, timetable, [self.tt_config.estimation_field] )
 
         fmt_todaycell = "**%s**"
         fmt_dayoffcell = "[[span(style=color: #c0c0c0, %s)]]"

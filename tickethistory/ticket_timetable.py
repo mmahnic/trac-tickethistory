@@ -80,7 +80,7 @@ class Timetable:
             prev_entry = entry
 
 
-class CTicketListLoader:
+class HistoryBuilder:
     def __init__(self, database):
         self.database = database
 

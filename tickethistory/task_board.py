@@ -24,6 +24,9 @@ class ColumnInfo:
         self.states = states
 
 class TracMarkupBoardRenderer:
+    """
+    Render the task board as a table using the Trac Markup.
+    """
     def __init__( self, timetableConfig ):
         self.tt_config = timetableConfig
         self.heading   = "||= New =||= In progress =||= Done =||= Summary =||"
@@ -58,6 +61,10 @@ class TracMarkupBoardRenderer:
 
 
 class HtmlBoardRenderer:
+    """
+    Render the task board as HTML.
+    """
+
     def __init__( self, timetableConfig, columns=None ):
         self.tt_config = timetableConfig
         self.columns = columns
@@ -94,6 +101,8 @@ class HtmlBoardRenderer:
         tmpl = '<a class="%(status)s ticket" href="%(href)s" title="%(type)s: %(summary)s (%(status)s)">#%(id)d</a>'
         def ticketIdAddr( ticketInfo ):
             return tmpl % ticketInfo.ticket
+        add_stylesheet(formatter.req, 'tickethistory/css/tickethistory.css')
+
         def isInProgress( ticketInfo ):
             ttc = self.tt_config
             return t.status not in ttc.new_states and t.status not in ttc.closed_states
@@ -162,29 +171,27 @@ class TaskBoardMacro(WikiMacroBase):
         self.env.log.debug("TaskBoardMacro TEXT %s", text)
         self.env.log.debug("TaskBoardMacro ARGS %s", request.args)
 
-        import ticket_timetable as listers
+        import ticket_timetable as history
         import dbutils
-        self.tt_config = listers.TimetableConfig()
+        self.tt_config = history.TimetableConfig()
         retriever = dbutils.MilestoneRetriever(self.env, request)
-
-        add_stylesheet(request, 'tickethistory/css/tickethistory.css')
 
         options = self._verify_options( self._parse_options( text ) )
         query_args = self._extract_query_args( options )
         desired_fields = [self.tt_config.estimation_field, "summary", "owner"]
 
-        lister = listers.CTicketListLoader( self.env.get_db_cnx() )
-        lister.timestamp_to_datetime = lambda ts: from_timestamp( ts )
+        builder = history.HistoryBuilder( self.env.get_db_cnx() )
+        builder.timestamp_to_datetime = lambda ts: from_timestamp( ts )
         tickets = retriever.retrieve( query_args, desired_fields )
         if 'date' in options:
             board_time = to_datetime(dt.datetime.combine(options['date'], dt.time.max))
         else:
             board_time = to_datetime(dt.datetime.now())
         start = board_time - dt.timedelta(days=1)
-        board_entry = listers.TimetableEntry( board_time )
-        timetable = listers.Timetable( start )
+        board_entry = history.TimetableEntry( board_time )
+        timetable = history.Timetable( start )
         timetable.entries = [ board_entry ]
-        lister.fillTicketTimetable(tickets, timetable, desired_fields )
+        builder.fillTicketTimetable(tickets, timetable, desired_fields )
 
         # renderer = TracMarkupBoardRenderer(self.tt_config);
         renderer = HtmlBoardRenderer(self.tt_config);
