@@ -1,4 +1,4 @@
-## Copyright (c) Marko Mahnič. All rights reserved.
+## Copyright (c) 2017 Marko Mahnič. All rights reserved.
 ## Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
 from trac.ticket.query import Query
