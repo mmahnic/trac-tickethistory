@@ -1,3 +1,4 @@
+## vim: set fileencoding=utf-8 sw=4 sts=4 ts=8 et :vim
 ## Copyright (c) 2017 Marko Mahnič. All rights reserved.
 ## Licensed under the MIT License. See LICENSE file in the project root for full license information.
 
