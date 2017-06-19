@@ -80,10 +80,10 @@ class HtmlBoardRenderer:
         # the first column where ColumnInfo.states="*"
         self.defaultColumn = None
         for col in self.columns:
-            if type(col.states) == type("") and col.states == "*":
+            if type(col.states) == type(""):
+                if self.defaultColumn is None and col.states == "*":
+                    self.defaultColumn = col
                 col.states = []
-                self.defaultColumn = col
-                break
 
     def splitTicketsIntoColumns( self, tickets ):
         res = [ [] for c in self.columns ]
@@ -108,7 +108,8 @@ class HtmlBoardRenderer:
 
         def isInProgress( ticketInfo ):
             ttc = self.tt_config
-            return t.status not in ttc.new_states and t.status not in ttc.closed_states
+            status = ticketInfo.value_or( "status", "" )
+            return status not in ttc.new_states and status not in ttc.closed_states
 
         columns = self.splitTicketsIntoColumns( tickets )
 
