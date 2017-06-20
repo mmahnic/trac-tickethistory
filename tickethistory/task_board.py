@@ -16,7 +16,9 @@ from trac.wiki.api import parse_args
 from trac.util.datefmt import from_utimestamp as from_timestamp, to_datetime, to_utimestamp as to_timestamp
 from trac.web.chrome import ITemplateProvider, Chrome, add_stylesheet, add_script, add_script_data
 from genshi.core import Markup
-from tickethistory import options, dbutils, ticket_timetable as history
+
+from tickethistory import options, dbutils, distributor
+from tickethistory import ticket_timetable as history
 
 class ColumnInfo:
     def __init__( self, title, states ):
@@ -99,6 +101,13 @@ class HtmlBoardRenderer:
                 res[idefault].append( t )
         return res
 
+
+    def calculateColumnSizes( self, columns ):
+        if len(columns) == 0:
+            return []
+        return distributor.distributeItems( [len(c) for c in columns], 12, 2, 1 )
+
+
     @staticmethod
     def _ticketIdAddr( ticketInfo ):
         return HtmlBoardRenderer.tid_tmpl % ticketInfo.ticket
@@ -112,10 +121,12 @@ class HtmlBoardRenderer:
             return status not in ttc.new_states and status not in ttc.closed_states
 
         columns = self.splitTicketsIntoColumns( tickets )
+        sizes = self.calculateColumnSizes( columns )
 
         result = ['<div class="tickethist-board">']
         for ic,colTickets in enumerate(columns):
-            result.append( '<div class="col-4 column">' )
+            result.append( '<div class="col-%d column">' % sizes[ic] )
+            result.append( '<div class="column-content">' )
             result.append( env.base_url )
             result.append( '<h2 class="column-title">%s</h2>' % self.columns[ic].title )
             for t in colTickets:
@@ -125,17 +136,22 @@ class HtmlBoardRenderer:
                 if estimate != "": estimate = "(%s)" % estimate
                 owner = t.value_or( "owner", "" ) if isInProgress( t ) else ""
                 summary = t.value_or( "summary", "" )
-                noteContent = '''<div class="note">
-                    <span class="note-head">
-                      <span class="ticket">%s</span>
-                      <span class="estimate">%s</span>
-                      <span class="owner">%s</span>
-                    </span>
-                    &nbsp;%s
-                    </div>''' % ( nameLink, estimate, owner, summary )
+                noteContent = '''
+                <div class="note-box">
+                  <div class="note">
+                  <span class="note-head">
+                    <span class="ticket">%s</span>
+                    <span class="estimate">%s</span>
+                    <span class="owner">%s</span>
+                  </span>
+                  &nbsp;%s
+                  </div>
+                </div>''' % ( nameLink, estimate, owner, summary )
                 result.append( noteContent )
             result.append( '</div>' )
+            result.append( '</div>' )
 
+        result.append( '<div style="float:left;width:100%;height:1px;"/>' )
         result.append( '</div>' )
 
         return Markup( "\n".join( result ) )
