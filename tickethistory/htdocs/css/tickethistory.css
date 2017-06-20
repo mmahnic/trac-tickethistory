@@ -54,6 +54,23 @@
    font-size: 120%;
 }
 
+@media (min-width: 400px) {
+   /* When the media is wide enough, display 2 notes per row */
+   .tickethist-board .note { height: 7vh; }
+   .tickethist-board .col-1 .note-box { width: 50%; }
+   .tickethist-board .col-2 .note-box { width: 50%; }
+   .tickethist-board .col-3 .note-box { width: 50%; }
+   .tickethist-board .col-4 .note-box { width: 50%; }
+   .tickethist-board .col-5 .note-box { width: 50%; }
+   .tickethist-board .col-6 .note-box { width: 50%; }
+   .tickethist-board .col-7 .note-box { width: 50%; }
+   .tickethist-board .col-8 .note-box { width: 50%; }
+   .tickethist-board .col-9 .note-box { width: 50%; }
+   .tickethist-board .col-10 .note-box { width: 50%; }
+   .tickethist-board .col-11 .note-box { width: 50%; }
+   .tickethist-board .col-12 .note-box { width: 50%; }
+}
+
 @media only screen and (min-width: 768px) {
    /* For desktop: */
    .col-1  { width: 8.33%;}
