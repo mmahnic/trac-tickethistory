@@ -1,3 +1,11 @@
+/* The full style of a column is "column col-X". */
+/* <div class="column col-X"><div class="column-content"> */
+.tickethist-board .column {
+   float: left;
+   margin: 0;
+   padding: 0;
+}
+
 /* Default (for mobile): */
 .col-1 {width: 100%;}
 .col-2 {width: 100%;}
@@ -12,6 +20,7 @@
 .col-11 {width: 100%;}
 .col-12 {width: 100%;}
 
+/* <div class="note-box"><div class="note"> */
 .tickethist-board .note-box {
    float: left;
    width: 100%;
@@ -35,12 +44,6 @@
 }
 .tickethist-board .note-head .owner {
    font-size: 100%;
-}
-
-.tickethist-board .column {
-   float: left;
-   margin: 0;
-   padding: 0;
 }
 
 .tickethist-board .column-content {
