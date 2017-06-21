@@ -1,0 +1,58 @@
+
+table.burn-down-table {
+   border-collapse: collapse;
+   border: 1px solid #e0e0e0;
+}
+
+.burn-down-table th, td {
+   border: 1px solid #e0e0e0;
+   padding-left: 2px;
+   padding-right: 2px;
+}
+
+.burn-down-table th {
+   font-weight: bold;
+   background-color: #e0e0e0;
+}
+
+.burn-down-table .today {
+   font-weight: bold;
+}
+
+.burn-down-table .weekend {
+   color: #7e7e7e;
+}
+
+.burn-down-table .cg-box {
+   display: flex;
+   flex-flow: row nowrap;
+   justify-content: flex-start;
+   align-items: stretch;
+}
+
+.burn-down-table .cg-empty {
+   float: left;
+   height: 1em;
+   overflow: hidden;
+}
+
+.burn-down-table .cg-behind {
+   float: left;
+   height: 1em;
+   background-color: red;
+   overflow: hidden;
+}
+
+.burn-down-table .cg-zero {
+   float: left;
+   height: 1em;
+   background-color: black;
+   overflow: hidden;
+}
+
+.burn-down-table .cg-ahead {
+   float: left;
+   height: 1em;
+   background-color: green;
+   overflow: hidden;
+}

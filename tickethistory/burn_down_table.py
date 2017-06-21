@@ -12,7 +12,8 @@ from genshi.core import Markup
 from trac.wiki.macros import WikiMacroBase
 from trac.wiki.api import parse_args
 from trac.util.datefmt import from_utimestamp as from_timestamp, to_datetime, to_utimestamp as to_timestamp
-from trac.core import TracError
+from trac.core import implements, TracError
+from trac.web.chrome import ITemplateProvider, Chrome, add_stylesheet, add_script, add_script_data
 from tickethistory import options, dbutils, workdays, ticket_timetable as history
 
 
@@ -63,7 +64,7 @@ class BurnDownTableGraphColumn:
 
     # Calculate the limits for the "graph": the min and max projected delay.
     # Negative values mean that some work was done ahead of time.
-    def _updateMinMaxEstimatedDelay( self):
+    def _updateMinMaxEstimatedDelay(self, low=-8, high=+22):
         self.minDelay = 0
         self.maxDelay = 0
 
@@ -87,15 +88,38 @@ class BurnDownTableGraphColumn:
                 self.minDelay = delay
             if delay > self.maxDelay:
                 self.maxDelay = delay
+        if self.minDelay < low:
+            self.minDelay = low
+        if self.maxDelay > high:
+            self.maxDelay = high
 
 
     def getDayStateGraph( self, graphdate, enddate ):
         if graphdate is None or enddate is None or enddate == "":
             return ""
+
         delay = (enddate - self.endtime.date()).days
-        # FIXME: can't insert {{{#!html}}} into a || table
-        # return '<div style="color:red;width:100px;" />'
-        return ("%d" % delay) if delay <= 0 else "+%d" % delay
+        delayStr = ("%d" % delay) if delay <= 0 else "+%d" % delay
+        if delay < self.minDelay:
+            delay = self.minDelay
+        if delay > self.maxDelay:
+            delay = self.maxDelay
+        scale = 4
+        leftEmpty = ( 0 if delay > 0 else delay ) - self.minDelay
+        ahead = 0 if delay >= 0 else -delay
+        behind = 0 if delay <= 0 else delay
+        rightEmpty = self.maxDelay - ( 0 if delay <= 0 else delay )
+        divs = [
+                '<div class="cg-box">',
+                '<div class="cg-empty" style="width:%dpx;">&nbsp;</div>' % leftEmpty * scale,
+                '<div class="cg-ahead" style="width:%dpx;">&nbsp;</div>' % ahead * scale,
+                '<div class="cg-zero" style="width:4px;">&nbsp;</div>',
+                '<div class="cg-behind" style="width:%dpx;">&nbsp;</div>' % behind * scale,
+                '<div class="cg-empty" style="width:%dpx;">&nbsp;</div>' % rightEmpty * scale,
+                '<div class="cg-empty"> %s</div>' % delayStr,
+                '</div>'
+                ]
+        return "".join(divs)
 
 
 class HtmlBurnDownTableRenderer:
@@ -131,7 +155,9 @@ class HtmlBurnDownTableRenderer:
         return "".join( content )
 
 
-    def render(self, entries, starttime, today ):
+    def render(self, entries, starttime, today, formatter ):
+        add_stylesheet(formatter.req, 'tickethistory/css/burndowntable.css')
+
         def estimate(tinfo, default=1):
             v = tinfo.value_or( self.tt_config.estimation_field, default )
             try: return float(v) if v is not None else default
@@ -204,5 +230,5 @@ class BurnDownTableMacro(WikiMacroBase):
 
         graph = BurnDownTableGraphColumn( self.tt_config, timetable, starttime, time_end )
         renderer = HtmlBurnDownTableRenderer(self.tt_config, graph)
-        return renderer.render( timetable.entries, starttime, today )
+        return renderer.render( timetable.entries, starttime, today, formatter )
 
