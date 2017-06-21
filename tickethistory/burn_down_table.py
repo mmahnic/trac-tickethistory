@@ -16,6 +16,7 @@ from trac.util.datefmt import from_utimestamp as from_timestamp, to_datetime, to
 from trac.core import TracError
 from tickethistory import options, dbutils, workdays, ticket_timetable as history
 
+
 class BurnDownTableOptions(options.OptionRegistry):
     def __init__(self):
         super(BurnDownTableOptions, self).__init__(["startdate", "enddate", "today"])
@@ -50,6 +51,52 @@ class BurnDownTableOptions(options.OptionRegistry):
 
         if (options['startdate'] >= options['enddate']):
             options['enddate'] = options['startdate'] + dt.timedelta(days=1)
+
+
+class BurnDownTableGraphColumn:
+    def __init__(self, timeTableConfig, timeTable, milestoneStart, milestoneEnd ):
+        self.tt_config = timeTableConfig
+        self.timetable = timeTable
+        self.starttime = milestoneStart
+        self.endtime = milestoneEnd
+        self._updateMinMaxEstimatedDelay()
+
+
+    # Calculate the limits for the "graph": the min and max projected delay.
+    # Negative values mean that some work was done ahead of time.
+    def _updateMinMaxEstimatedDelay( self):
+        self.minDelay = 0
+        self.maxDelay = 0
+
+        def estimate(tinfo, default=1):
+            v = tinfo.value_or( self.tt_config.estimation_field, default )
+            try: return float(v) if v is not None else default
+            except: return default
+
+        for entry in self.timetable.entries:
+            date = entry.endtime.date()
+            if date.weekday() > 4:
+                continue
+            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.closed_states )
+            ptotal = sum( estimate(t) for t in entry.tickets )
+            premaining = ptotal - pdone
+            enddate_wd = workdays.estimate_end_workdays( self.starttime, entry.endtime, ptotal, premaining )
+            if enddate_wd is None:
+                continue
+            delay = (enddate_wd.date() - self.endtime.date()).days
+            if delay < self.minDelay:
+                self.minDelay = delay
+            if delay > self.maxDelay:
+                self.maxDelay = delay
+
+
+    def getDayStateGraph( self, graphdate, enddate ):
+        if graphdate is None or enddate is None or enddate == "":
+            return ""
+        delay = (enddate - self.endtime.date()).days
+        # FIXME: can't insert {{{#!html}}} into a || table
+        # return '<div style="color:red;width:100px;" />'
+        return ("%d" % delay) if delay <= 0 else "+%d" % delay
 
 
 class BurnDownTableMacro(WikiMacroBase):
@@ -108,7 +155,7 @@ class BurnDownTableMacro(WikiMacroBase):
             try: return float(v) if v is not None else default
             except: return default
 
-        dmin, dmax = self._getMinMaxEstimateDelta( timetable, starttime )
+        graph = BurnDownTableGraphColumn( self.tt_config, timetable, time_first, time_end )
 
         today = options['today']
         for entry in timetable.entries:
@@ -132,7 +179,7 @@ class BurnDownTableMacro(WikiMacroBase):
             else: fmt = fmtnormal
 
             result.append( fmt % (date, ptotal, premaining, pnew, pwip, pdone, enddate, enddate_wd,
-                    self._dayStateGraph( date, enddate_wd, dmin, dmax ) ) )
+                    graph.getDayStateGraph( date, enddate_wd ) ) )
         result.append( "" )
 
         newtext = "\n".join( result )
@@ -140,38 +187,3 @@ class BurnDownTableMacro(WikiMacroBase):
         Formatter(self.env, formatter.context).format(newtext, out)
         return Markup(out.getvalue())
 
-    # calculate the limits for the "graph"
-    def _getMinMaxEstimateDelta( self, timetable, starttime ):
-        import workdays
-        dmin = 0
-        dmax = 0
-
-        def estimate(tinfo, default=1):
-            v = tinfo.value_or( self.tt_config.estimation_field, default )
-            try: return float(v) if v is not None else default
-            except: return default
-
-        for entry in timetable.entries:
-            date = entry.endtime.date()
-            if date.weekday() > 4:
-                continue
-            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.closed_states )
-            ptotal = sum( estimate(t) for t in entry.tickets )
-            premaining = ptotal - pdone
-            enddate_wd = workdays.estimate_end_workdays( starttime, entry.endtime, ptotal, premaining )
-            if enddate_wd is None:
-                continue
-            delta = (enddate_wd.date() - date).days
-            if delta < dmin:
-                dmin = delta
-            if delta > dmax:
-                dmax = delta
-        return (dmin, dmax)
-
-    def _dayStateGraph( self, graphdate, enddate, dmin, dmax ):
-        if graphdate is None or enddate is None or enddate == "":
-            return ""
-        delta = (enddate - graphdate).days
-        # FIXME: can't insert {{{#!html}}} into a || table
-        # return '<div style="color:red;width:100px;" />'
-        return ("%d" % delta) if delta <= 0 else "+%d" % delta
