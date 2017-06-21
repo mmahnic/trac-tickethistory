@@ -10,7 +10,6 @@ import datetime as dt
 
 from genshi.core import Markup
 from trac.wiki.macros import WikiMacroBase
-from trac.wiki import Formatter
 from trac.wiki.api import parse_args
 from trac.util.datefmt import from_utimestamp as from_timestamp, to_datetime, to_utimestamp as to_timestamp
 from trac.core import TracError
@@ -99,6 +98,71 @@ class BurnDownTableGraphColumn:
         return ("%d" % delay) if delay <= 0 else "+%d" % delay
 
 
+class HtmlBurnDownTableRenderer:
+    def __init__(self, timeTableConfig, graphColumnRenderer ):
+        self.tt_config = timeTableConfig
+        self.graphColumn = graphColumnRenderer
+        self.columns = [ "Date", "Total", "Remain", "New", "WiP", "Done", "End", "End*", "Delay" ]
+        self.formats = [ "%s", "%.1f", "%.1f", "%.1f", "%.1f", "%.1f", "%s", "%s", "%s" ]
+        self.alignments = [ "left", "right", "right", "right", "right", "right", "left", "left", "initial" ]
+        self.tableRows = []
+
+
+    def headerCells( self ):
+        cells = [ '<th style="text-align:%s;">%s</th>' % (self.alignments[ic], c)
+                for ic,c in enumerate(self.columns) ]
+        return cells
+
+
+    def addRow( self, cssclass, date, total, remain, new, wip, done, end, wd_end, graph ):
+        values = [ date, total, remain, new, wip, done, end, wd_end, graph ]
+        cells = [ '<td class="%s" style="text-align:%s;">%s</td>' % (cssclass, self.alignments[ic],
+                self.formats[ic] % v if v != None else "")
+                for ic,v in enumerate(values) ]
+        self.tableRows.append( cells )
+
+
+    def getContent( self ):
+        content = [ '<table class="burn-down-table">' ]
+        content += [ "<tr>" ] + self.headerCells() + [ "</tr>" ]
+        for r in self.tableRows:
+            content += [ "<tr>" ] + r + [ "</tr>" ]
+        content.append( '</table>' )
+        return "".join( content )
+
+
+    def render(self, entries, starttime, today ):
+        def estimate(tinfo, default=1):
+            v = tinfo.value_or( self.tt_config.estimation_field, default )
+            try: return float(v) if v is not None else default
+            except: return default
+
+        for entry in entries:
+            date = entry.endtime.date()
+            pnew = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.new_states )
+            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.closed_states )
+            ptotal = sum( estimate(t) for t in entry.tickets )
+            pwip = ptotal - pnew - pdone
+            premaining = ptotal - pdone
+
+            enddate = workdays.estimate_end( starttime, entry.endtime, ptotal, premaining )
+            enddate = "" if enddate is None else enddate.date()
+            if date.weekday() > 4:
+                enddate_wd = ""
+            else:
+                enddate_wd = workdays.estimate_end_workdays( starttime, entry.endtime, ptotal, premaining )
+                enddate_wd = "" if enddate_wd is None else enddate_wd.date()
+
+            if date == today: cssclass = "today"
+            elif date.weekday() > 4: cssclass = "weekend"
+            else: cssclass = "normal"
+
+            self.addRow( cssclass, date, ptotal, premaining, pnew, pwip, pdone, enddate, enddate_wd,
+                    self.graphColumn.getDayStateGraph( date, enddate_wd ) )
+
+        return Markup(self.getContent())
+
+
 class BurnDownTableMacro(WikiMacroBase):
     def expand_macro(self, formatter, name, text, args):
         request = formatter.req
@@ -123,67 +187,22 @@ class BurnDownTableMacro(WikiMacroBase):
         starttime = to_datetime(dt.datetime.combine(options['startdate'], dt.time.min))
         time_first = to_datetime(dt.datetime.combine(options['startdate'], dt.time.max))
         time_end = to_datetime(dt.datetime.combine(options['enddate'], dt.time.max))
+        today = options['today']
         delta = dt.timedelta(days=1)
 
         timetable = history.Timetable( starttime )
         timetable.entries = [ history.TimetableEntry( time_first ) ]
         time_next = time_first + delta
         while time_next <= time_end:
-            timetable.entries += [ history.TimetableEntry( time_next ) ]
+            timetable.entries.append( history.TimetableEntry( time_next ) )
             time_next += delta
+        if today > time_end.date():
+            timetable.entries.append( history.TimetableEntry(
+                    to_datetime(dt.datetime.combine(today, dt.time.max))) )
 
         builder.fillTicketTimetable(tickets, timetable, [self.tt_config.estimation_field] )
 
-        fmt_todaycell = "**%s**"
-        fmt_dayoffcell = "[[span(style=color: #c0c0c0, %s)]]"
-        def cellcontent( c, wrapformat ):
-            align_start = " " if c[0] == " " else ""
-            align_end = " " if c[-1] == " " else ""
-            return align_start + (wrapformat % c.strip()) + align_end
-        def wikirow( cells ):
-            return "||" + ( "||".join( cells ) ) + "||" + "%s" + "||"
-        cells = [ " %s ", " %.1f", " %.1f", " %.1f", " %.1f", " %.1f", " %s", " %s" ]
-        fmtnormal  = wikirow( cells )
-        fmttoday   = wikirow( cellcontent(c, fmt_todaycell) for c in cells )
-        fmtweekend = wikirow( cellcontent(c, fmt_dayoffcell) for c in cells )
-
-        result = []
-        result.append( "||= Date =||= Total =||= Remain =||= New =||= WiP =||= Done =||= End =||= End* =||= =||" )
-
-        def estimate(tinfo, default=1):
-            v = tinfo.value_or( self.tt_config.estimation_field, default )
-            try: return float(v) if v is not None else default
-            except: return default
-
-        graph = BurnDownTableGraphColumn( self.tt_config, timetable, time_first, time_end )
-
-        today = options['today']
-        for entry in timetable.entries:
-            date = entry.endtime.date()
-            pnew = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.new_states )
-            pdone = sum( estimate(t) for t in entry.tickets if t.status in self.tt_config.closed_states )
-            ptotal = sum( estimate(t) for t in entry.tickets )
-            pwip = ptotal - pnew - pdone
-            premaining = ptotal - pdone
-
-            enddate = workdays.estimate_end( starttime, entry.endtime, ptotal, premaining )
-            enddate = "" if enddate is None else enddate.date()
-            if date.weekday() > 4:
-                enddate_wd = ""
-            else:
-                enddate_wd = workdays.estimate_end_workdays( starttime, entry.endtime, ptotal, premaining )
-                enddate_wd = "" if enddate_wd is None else enddate_wd.date()
-
-            if date == today: fmt = fmttoday
-            elif date.weekday() > 4: fmt = fmtweekend
-            else: fmt = fmtnormal
-
-            result.append( fmt % (date, ptotal, premaining, pnew, pwip, pdone, enddate, enddate_wd,
-                    graph.getDayStateGraph( date, enddate_wd ) ) )
-        result.append( "" )
-
-        newtext = "\n".join( result )
-        out = StringIO.StringIO()
-        Formatter(self.env, formatter.context).format(newtext, out)
-        return Markup(out.getvalue())
+        graph = BurnDownTableGraphColumn( self.tt_config, timetable, starttime, time_end )
+        renderer = HtmlBurnDownTableRenderer(self.tt_config, graph)
+        return renderer.render( timetable.entries, starttime, today )
 
