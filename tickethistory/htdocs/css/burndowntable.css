@@ -27,7 +27,7 @@ table.burn-down-table {
    display: flex;
    flex-flow: row nowrap;
    justify-content: flex-start;
-   align-items: stretch;
+   align-items: end;
 }
 
 .burn-down-table .cg-empty {
@@ -46,7 +46,7 @@ table.burn-down-table {
 .burn-down-table .cg-zero {
    float: left;
    height: 1em;
-   background-color: black;
+   background-color: #dedede;
    overflow: hidden;
 }
 
@@ -56,3 +56,17 @@ table.burn-down-table {
    background-color: green;
    overflow: hidden;
 }
+
+.burn-down-table .cg-text {
+   float: left;
+   padding-left: 0.5em;
+}
+
+.burn-down-table .cg-aheadalot {
+   color: green;
+}
+
+.burn-down-table .cg-behindalot {
+   color: red;
+}
+

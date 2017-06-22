@@ -54,6 +54,11 @@ class BurnDownTableOptions(options.OptionRegistry):
 
 
 class BurnDownTableGraphColumn:
+    """
+    The graph shows the delay with two bars: the red bar is shown if the amount
+    of completed work is behind schedule and the green bar is shown if the work
+    is ahead of schedule.
+    """
     def __init__(self, timeTableConfig, timeTable, milestoneStart, milestoneEnd ):
         self.tt_config = timeTableConfig
         self.timetable = timeTable
@@ -90,8 +95,12 @@ class BurnDownTableGraphColumn:
                 self.maxDelay = delay
         if self.minDelay < low:
             self.minDelay = low
+        if self.minDelay > low / 2:
+            self.minDelay = low / 2
         if self.maxDelay > high:
             self.maxDelay = high
+        if self.maxDelay < high / 2:
+            self.maxDelay = high / 2
 
 
     def getDayStateGraph( self, graphdate, enddate ):
@@ -100,10 +109,13 @@ class BurnDownTableGraphColumn:
 
         delay = (enddate - self.endtime.date()).days
         delayStr = ("%d" % delay) if delay <= 0 else "+%d" % delay
+        delayClass = ""
         if delay < self.minDelay:
             delay = self.minDelay
+            delayClass = " cg-aheadalot"
         if delay > self.maxDelay:
             delay = self.maxDelay
+            delayClass = " cg-behindalot"
         scale = 4
         leftEmpty = ( 0 if delay > 0 else delay ) - self.minDelay
         ahead = 0 if delay >= 0 else -delay
@@ -116,7 +128,7 @@ class BurnDownTableGraphColumn:
                 '<div class="cg-zero" style="width:4px;">&nbsp;</div>',
                 '<div class="cg-behind" style="width:%dpx;">&nbsp;</div>' % behind * scale,
                 '<div class="cg-empty" style="width:%dpx;">&nbsp;</div>' % rightEmpty * scale,
-                '<div class="cg-empty"> %s</div>' % delayStr,
+                '<div class="cg-text%s"> %s</div>' % (delayClass, delayStr),
                 '</div>'
                 ]
         return "".join(divs)
