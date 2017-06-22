@@ -5,3 +5,4 @@
 cd ../..
 python -B -m tickethistory.test.workdays_t
 python -B -m tickethistory.test.distributor_t
+python -B -m tickethistory.test.iterations_t
