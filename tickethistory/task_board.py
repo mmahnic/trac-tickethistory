@@ -126,9 +126,8 @@ class HtmlBoardRenderer:
         result = ['<div class="tickethist-board">']
         for ic,colTickets in enumerate(columns):
             result.append( '<div class="col-%d column">' % sizes[ic] )
-            result.append( '<div class="column-content">' )
-            result.append( env.base_url )
             result.append( '<h2 class="column-title">%s</h2>' % self.columns[ic].title )
+            result.append( '<div class="column-content">' )
             for t in colTickets:
                 # address = env.href( 'ticket', t.tid() )
                 nameLink = HtmlBoardRenderer._ticketIdAddr( t )
@@ -151,7 +150,6 @@ class HtmlBoardRenderer:
             result.append( '</div>' )
             result.append( '</div>' )
 
-        result.append( '<div style="float:left;width:100%;height:1px;"/>' )
         result.append( '</div>' )
 
         return Markup( "\n".join( result ) )
