@@ -28,13 +28,45 @@
 /* <div class="note-box"><div class="note"> */
 .tickethist-board .note-box {
    width: 100%;
+   position: relative;
 }
+
 .tickethist-board .note {
    height: 5vh;
    margin: 1px;
    border: 1px solid #ffe072;
    overflow: hidden;
    background-color: #fcffb2;
+   left: 0px;
+   top: 0px;
+   z-index: 2;
+}
+
+/* The flags are overlapping the BL corner of the note */
+.tickethist-board .flags {
+   max-width: 50%;
+   position: absolute;
+   bottom: 4px;
+   right: 4px;
+   z-index: 3;
+   background: transparent;
+   /* background-color: cyan; */
+   display: flex;
+   flex-flow: row-reverse wrap-reverse;
+}
+
+.tickethist-board .flags .flag {
+   margin-left: 1px;
+   padding: 1px;
+   background-color: #ffe072; /* note border */
+}
+
+.tickethist-board .flags .flag-test {
+   background-color: red;
+}
+
+.tickethist-board .flags .flag-block {
+   background-color: magenta;
 }
 
 .tickethist-board .note-head {

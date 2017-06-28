@@ -25,6 +25,29 @@ class ColumnInfo:
         self.title = title
         self.states = states
 
+
+class NoteFlag:
+    def __init__(self, text=None, style=None ):
+        self.text = text
+        self.style = style
+
+
+class NoteFlagProvider:
+    def __init__( self ):
+        self.extra_fields = []
+        self.stylesheet = None
+        self.test_states = [ "testing" ]
+
+    def getFlags( self, ticketInfo ):
+        status = ticketInfo.value_or( "status", "" )
+        res = []
+        if status in self.test_states:
+            res.append(NoteFlag("Test", "flag-test"))
+        # res.append(NoteFlag("Test", "flag-test"))
+        # res.append(NoteFlag("Wait", "flag-block"))
+        return res
+
+
 class TracMarkupBoardRenderer:
     """
     Render the task board as a table using the Trac Markup.
@@ -35,6 +58,9 @@ class TracMarkupBoardRenderer:
         self.line_new  = "|| %(id)s %(est)s || || || %(sum)s ||"
         self.line_wip  = "|| || %(id)s %(est)s %(own)s || || %(sum)s ||"
         self.line_done = "|| || || %(id)s %(est)s  || %(sum)s ||"
+
+    def setFlagProvider( self, flagProvider ):
+        pass
 
     def render( self, tickets, env, formatter ):
         result = []
@@ -72,6 +98,7 @@ class HtmlBoardRenderer:
     def __init__( self, timetableConfig, columns=None ):
         self.tt_config = timetableConfig
         self.columns = columns
+        self.flagProvider = None
         if self.columns is None:
             self.columns = [
                     ColumnInfo( "New", timetableConfig.new_states ),
@@ -86,6 +113,9 @@ class HtmlBoardRenderer:
                 if self.defaultColumn is None and col.states == "*":
                     self.defaultColumn = col
                 col.states = []
+
+    def setFlagProvider( self, flagProvider ):
+        self.flagProvider = flagProvider
 
     def splitTicketsIntoColumns( self, tickets ):
         res = [ [] for c in self.columns ]
@@ -112,6 +142,16 @@ class HtmlBoardRenderer:
     def _ticketIdAddr( ticketInfo ):
         return HtmlBoardRenderer.tid_tmpl % ticketInfo.ticket
 
+    def _renderFlags( self, ticket, result ):
+        flags = None if self.flagProvider is None else self.flagProvider.getFlags( ticket )
+        if flags is not None and len(flags) > 0:
+            result.append( '''<div class="flags">''' )
+            for f in flags:
+                text = f.text if f.text is not None else ""
+                style = " " + f.style if f.style is not None else ""
+                result.append( '''<div class="flag%s">%s</div>''' % (style, text) )
+            result.append( '</div>' )
+
     def render( self, tickets, env, formatter ):
         add_stylesheet(formatter.req, 'tickethistory/css/tickethistory.css')
 
@@ -135,8 +175,8 @@ class HtmlBoardRenderer:
                 if estimate != "": estimate = "(%s)" % estimate
                 owner = t.value_or( "owner", "" ) if isInProgress( t ) else ""
                 summary = t.value_or( "summary", "" )
+                result.append( '''<div class="note-box">''' )
                 noteContent = '''
-                <div class="note-box">
                   <div class="note">
                   <span class="note-head">
                     <span class="ticket">%s</span>
@@ -144,11 +184,14 @@ class HtmlBoardRenderer:
                     <span class="owner">%s</span>
                   </span>
                   &nbsp;%s
-                  </div>
-                </div>''' % ( nameLink, estimate, owner, summary )
+                  </div>''' % ( nameLink, estimate, owner, summary )
                 result.append( noteContent )
-            result.append( '</div>' )
-            result.append( '</div>' )
+                if self.flagProvider is not None:
+                    self._renderFlags( t, result )
+                result.append( '</div>' ) # note-box
+
+            result.append( '</div>' ) # column-content
+            result.append( '</div>' ) # column
 
         result.append( '</div>' )
 
@@ -186,7 +229,9 @@ class TaskBoardMacro(WikiMacroBase):
         options = optionReg.options()
         query_args = optionReg.query_args()
 
-        desired_fields = [self.tt_config.estimation_field, "summary", "owner"]
+        flagProvider = NoteFlagProvider()
+
+        desired_fields = [self.tt_config.estimation_field, "summary", "owner"] + flagProvider.extra_fields
         # self.env.log.debug("TaskBoardMacro OPTIONS %s", options)
         # self.env.log.debug("TaskBoardMacro QUERY %s", query_args)
 
@@ -205,4 +250,5 @@ class TaskBoardMacro(WikiMacroBase):
 
         # renderer = TracMarkupBoardRenderer(self.tt_config);
         renderer = HtmlBoardRenderer(self.tt_config);
+        renderer.setFlagProvider( flagProvider )
         return renderer.render( board_entry.tickets, self.env, formatter )
