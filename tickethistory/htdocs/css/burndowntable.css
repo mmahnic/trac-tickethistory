@@ -70,3 +70,6 @@ table.burn-down-table {
    color: red;
 }
 
+.burn-down-table .cg-future {
+   opacity: 0.2;
+}

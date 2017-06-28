@@ -64,6 +64,8 @@ class BurnDownTableGraphColumn:
         self.timetable = timeTable
         self.starttime = milestoneStart
         self.endtime = milestoneEnd
+        # graphs after this date have the style cg-future
+        self.futureDate = (dt.datetime.today() + dt.timedelta(days=1)).date()
         self._updateMinMaxEstimatedDelay()
 
 
@@ -121,8 +123,9 @@ class BurnDownTableGraphColumn:
         ahead = 0 if delay >= 0 else -delay
         behind = 0 if delay <= 0 else delay
         rightEmpty = self.maxDelay - ( 0 if delay <= 0 else delay )
+        cssFuture = " cg-future" if graphdate > self.futureDate else ""
         divs = [
-                '<div class="cg-box">',
+                '<div class="cg-box%s">' % cssFuture,
                 '<div class="cg-empty" style="width:%dpx;">&nbsp;</div>' % leftEmpty * scale,
                 '<div class="cg-ahead" style="width:%dpx;">&nbsp;</div>' % ahead * scale,
                 '<div class="cg-zero" style="width:4px;">&nbsp;</div>',
