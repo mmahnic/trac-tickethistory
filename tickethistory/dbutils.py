@@ -85,6 +85,7 @@ class MilestoneRetriever(Retriever):
         ids = self.get_ticket_ids_in_milestone( milestone )
         query_args = copy.copy( query_args )
         query_args["id"] = "|".join( ["%d" % tid for tid in ids] )
+        del query_args['milestone']
 
         return super(MilestoneRetriever, self).retrieve( query_args, extra_columns )
 
