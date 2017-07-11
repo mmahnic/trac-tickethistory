@@ -48,6 +48,31 @@ class NoteFlagProvider:
         return res
 
 
+class DebugDumpRenderer:
+    def __init__( self, timetableConfig ):
+        self.tt_config = timetableConfig
+
+    def setFlagProvider( self, flagProvider ):
+        pass
+
+    def render( self, tickets, env, formatter ):
+        result = ["{{{"]
+        board_tickets = sorted( tickets, key=lambda t: t.tid() )
+        for t in board_tickets:
+            result.append( "Ticket %s" % t.value_or( "id", "?" ) )
+            result.append( "  Status '%s'" % t.status )
+            result.append( "  Milestone '%s'" % t.milestone )
+            result.append( "  Ticket content:" )
+            for k,v in t.ticket.iteritems():
+                result.append( "     %s: %s" % (k, v) )
+
+        result.append( "}}}" )
+        newtext = "\n".join( result )
+        out = StringIO.StringIO()
+        Formatter(env, formatter.context).format(newtext, out)
+        return Markup(out.getvalue())
+
+
 class TracMarkupBoardRenderer:
     """
     Render the task board as a table using the Trac Markup.
@@ -232,12 +257,16 @@ class TaskBoardMacro(WikiMacroBase):
         flagProvider = NoteFlagProvider()
 
         desired_fields = [self.tt_config.estimation_field, "summary", "owner"] + flagProvider.extra_fields
+        desired_fields = desired_fields + self.tt_config.iteration_fields
         # self.env.log.debug("TaskBoardMacro OPTIONS %s", options)
         # self.env.log.debug("TaskBoardMacro QUERY %s", query_args)
 
-        builder = history.HistoryBuilder( self.env.get_db_cnx() )
+        isInIteration = self.tt_config.getIsInIteration( query_args );
+
+        builder = history.HistoryBuilder( self.env.get_db_cnx(), isInIteration )
         builder.timestamp_to_datetime = lambda ts: from_timestamp( ts )
         tickets = retriever.retrieve( query_args, desired_fields )
+        # self.env.log.debug("TaskBoardMacro TICKETS in milestone: %s", [t['id'] for t in tickets])
         if 'date' in options:
             board_time = to_datetime(dt.datetime.combine(options['date'], dt.time.max))
         else:
@@ -248,7 +277,8 @@ class TaskBoardMacro(WikiMacroBase):
         timetable.entries = [ board_entry ]
         builder.fillTicketTimetable(tickets, timetable, desired_fields )
 
-        # renderer = TracMarkupBoardRenderer(self.tt_config);
-        renderer = HtmlBoardRenderer(self.tt_config);
+        # renderer = DebugDumpRenderer( self.tt_config )
+        # renderer = TracMarkupBoardRenderer(self.tt_config)
+        renderer = HtmlBoardRenderer(self.tt_config)
         renderer.setFlagProvider( flagProvider )
         return renderer.render( board_entry.tickets, self.env, formatter )

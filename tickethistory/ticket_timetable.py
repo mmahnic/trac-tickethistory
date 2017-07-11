@@ -10,6 +10,17 @@ class TimetableConfig:
         self.closed_states = [ "closed" ]
         self.new_states = [ "new" ]
         self.estimation_field = "tm_estimate"
+        self.iteration_fields = ["milestone"]
+
+        # Create a function that will check if the ticketInfo belongs to an iteration.
+        # By default we check if the ticket info has the correct milestone attribute.
+        def getIsInIteration( query_args ):
+            milestone = query_args['milestone']
+            def isInIteration( ticketInfo ):
+                return ticketInfo.milestone == milestone
+            return isInIteration
+        self.getIsInIteration = getIsInIteration
+
 
 class TicketInfo:
     def __init__(self, ticket, time, status, milestone):
@@ -69,6 +80,7 @@ class Timetable:
                 return t
         return None
 
+
     def _propagateTicketInfoForward( self ):
         prev_entry = None
         for entry in self.entries:
@@ -81,11 +93,18 @@ class Timetable:
             prev_entry = entry
 
 
-class HistoryBuilder:
-    def __init__(self, database):
-        self.database = database
+    def _removeTicketsIfNotInIteration( self, isInIteration=lambda ticketInfo: True ):
+        for entry in self.entries:
+            entry.tickets = [ t for t in entry.tickets if isInIteration( t ) ]
 
-	def invalid(msg) : raise Exception( msg )
+
+
+class HistoryBuilder:
+    def __init__(self, database, isInIteration ):
+        self.database = database
+        self.isInIteration = isInIteration if isInIteration is not None else lambda ticketInfo: True
+
+        def invalid(msg) : raise Exception( msg )
 
         self.timestamp_to_datetime = lambda tstamp: invalid( "timestamp_to_datetime not set" )
 
@@ -109,6 +128,7 @@ class HistoryBuilder:
             self._generateTicketInfo( t, history, timetable )
 
         timetable._propagateTicketInfoForward()
+        timetable._removeTicketsIfNotInIteration( self.isInIteration )
 
 
     class _HistorySettings:

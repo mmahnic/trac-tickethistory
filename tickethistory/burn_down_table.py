@@ -8,13 +8,14 @@ import math
 import traceback
 import datetime as dt
 
-from genshi.core import Markup
+from trac.wiki import Formatter
 from trac.wiki.macros import WikiMacroBase
 from trac.wiki.api import parse_args
 from trac.util.datefmt import from_utimestamp as from_timestamp, to_datetime, to_utimestamp as to_timestamp
 from trac.core import implements, TracError
 from trac.web.chrome import ITemplateProvider, Chrome, add_stylesheet, add_script, add_script_data
 from tickethistory import options, dbutils, workdays, ticket_timetable as history
+from genshi.core import Markup
 
 
 class BurnDownTableOptions(options.OptionRegistry):
@@ -204,6 +205,38 @@ class HtmlBurnDownTableRenderer:
         return Markup(self.getContent())
 
 
+class DebugDumpRenderer:
+    def __init__(self, timeTableConfig, env ):
+        self.tt_config = timeTableConfig
+        self.env = env
+
+
+    def setFlagProvider( self, flagProvider ):
+        pass
+
+
+    def render(self, entries, starttime, today, formatter ):
+        result = []
+        for entry in entries:
+            date = entry.endtime.date()
+            result.append( "== %s" % date )
+            result.append( "{{{" )
+            for t in entry.tickets:
+                result.append( "Ticket %s" % t.value_or( "id", "?" ) )
+                result.append( "  Status '%s'" % t.status )
+                result.append( "  Milestone '%s'" % t.milestone )
+                result.append( "  Estimate '%s'" % t.value_or( self.tt_config.estimation_field, "-" ) )
+                # result.append( "  Ticket content:" )
+                # for k,v in t.ticket.iteritems():
+                #     result.append( "     %s: %s" % (k, v) )
+            result.append( "}}}" )
+
+        newtext = "\n".join( result )
+        out = StringIO.StringIO()
+        Formatter(self.env, formatter.context).format(newtext, out)
+        return Markup(out.getvalue())
+
+
 class BurnDownTableMacro(WikiMacroBase):
     def expand_macro(self, formatter, name, text, args):
         request = formatter.req
@@ -220,8 +253,11 @@ class BurnDownTableMacro(WikiMacroBase):
         query_args = optionReg.query_args()
 
         desired_fields = [self.tt_config.estimation_field]
+        desired_fields = desired_fields + self.tt_config.iteration_fields
 
-        builder = history.HistoryBuilder( self.env.get_db_cnx() )
+        isInIteration = self.tt_config.getIsInIteration( query_args );
+
+        builder = history.HistoryBuilder( self.env.get_db_cnx(), isInIteration )
         builder.timestamp_to_datetime = lambda ts: from_timestamp( ts )
         tickets = retriever.retrieve( query_args, desired_fields )
 
@@ -244,6 +280,7 @@ class BurnDownTableMacro(WikiMacroBase):
         builder.fillTicketTimetable(tickets, timetable, [self.tt_config.estimation_field] )
 
         graph = BurnDownTableGraphColumn( self.tt_config, timetable, starttime, time_end )
+        # renderer = DebugDumpRenderer( self.tt_config, self.env )
         renderer = HtmlBurnDownTableRenderer(self.tt_config, graph)
         return renderer.render( timetable.entries, starttime, today, formatter )
 
