@@ -49,11 +49,22 @@ class NoteFlagProvider:
         return res
 
 
+class SortOrderProvider:
+    def __init__( self ):
+        self.extra_fields = ["component"]
+
+    def sortTicketInfos( self, tickets ):
+        tickets.sort( key=lambda ti: (ti.value_or( "component", "" ), ti.ticket['id']) )
+
+
 class DebugDumpRenderer:
     def __init__( self, timetableConfig ):
         self.tt_config = timetableConfig
 
     def setFlagProvider( self, flagProvider ):
+        pass
+
+    def setSortProvider( self, sortProvider ):
         pass
 
     def render( self, tickets, env, formatter ):
@@ -86,6 +97,9 @@ class TracMarkupBoardRenderer:
         self.line_done = "|| || || %(id)s %(est)s  || %(sum)s ||"
 
     def setFlagProvider( self, flagProvider ):
+        pass
+
+    def setSortProvider( self, sortProvider ):
         pass
 
     def render( self, tickets, env, formatter ):
@@ -125,6 +139,7 @@ class HtmlBoardRenderer:
         self.tt_config = timetableConfig
         self.columns = columns
         self.flagProvider = None
+        self.sortProvider = None
         if self.columns is None:
             self.columns = [
                     ColumnInfo( "New", timetableConfig.new_states ),
@@ -140,8 +155,14 @@ class HtmlBoardRenderer:
                     self.defaultColumn = col
                 col.states = []
 
+
     def setFlagProvider( self, flagProvider ):
         self.flagProvider = flagProvider
+
+
+    def setSortProvider( self, sortProvider ):
+        self.sortProvider = sortProvider
+
 
     def splitTicketsIntoColumns( self, tickets ):
         res = [ [] for c in self.columns ]
@@ -191,6 +212,9 @@ class HtmlBoardRenderer:
 
         result = ['<div class="tickethist-board">']
         for ic,colTickets in enumerate(columns):
+            if self.sortProvider is not None:
+                self.sortProvider.sortTicketInfos( colTickets )
+
             result.append( '<div class="col-%d column">' % sizes[ic] )
             result.append( '<h2 class="column-title">%s</h2>' % self.columns[ic].title )
             result.append( '<div class="column-content">' )
@@ -255,10 +279,12 @@ class TaskBoardMacro(WikiMacroBase):
         query_args = optionReg.query_args()
 
         flagProvider = NoteFlagProvider()
+        sortProvider = SortOrderProvider()
 
         desired_fields = [self.tt_config.estimation_field, "summary", "owner", "type"]
         desired_fields = desired_fields + self.tt_config.iteration_fields
         desired_fields = desired_fields + flagProvider.extra_fields
+        desired_fields = desired_fields + sortProvider.extra_fields
         # self.env.log.debug("TaskBoardMacro OPTIONS %s", options)
         # self.env.log.debug("TaskBoardMacro QUERY %s", query_args)
 
@@ -282,4 +308,5 @@ class TaskBoardMacro(WikiMacroBase):
         # renderer = TracMarkupBoardRenderer(self.tt_config)
         renderer = HtmlBoardRenderer(self.tt_config)
         renderer.setFlagProvider( flagProvider )
+        renderer.setSortProvider( sortProvider )
         return renderer.render( board_entry.tickets, self.env, formatter )
