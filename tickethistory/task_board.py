@@ -34,7 +34,7 @@ class NoteFlag:
 
 class NoteFlagProvider:
     def __init__( self ):
-        self.extra_fields = []
+        self.extra_fields = ["component"]
         self.stylesheet = None
         self.test_states = [ "testing" ]
 
@@ -43,8 +43,9 @@ class NoteFlagProvider:
         res = []
         if status in self.test_states:
             res.append(NoteFlag("Test", "flag-test"))
-        # res.append(NoteFlag("Test", "flag-test"))
-        # res.append(NoteFlag("Wait", "flag-block"))
+        component = ticketInfo.value_or( "component", None )
+        if component is not None and len(component) > 0:
+            res.append(NoteFlag(component[:6], "flag-component"))
         return res
 
 
@@ -194,7 +195,6 @@ class HtmlBoardRenderer:
             result.append( '<h2 class="column-title">%s</h2>' % self.columns[ic].title )
             result.append( '<div class="column-content">' )
             for t in colTickets:
-                # address = env.href( 'ticket', t.tid() )
                 nameLink = HtmlBoardRenderer._ticketIdAddr( t )
                 estimate = t.value_or(self.tt_config.estimation_field, "")
                 if estimate != "": estimate = "(%s)" % estimate
@@ -256,8 +256,9 @@ class TaskBoardMacro(WikiMacroBase):
 
         flagProvider = NoteFlagProvider()
 
-        desired_fields = [self.tt_config.estimation_field, "summary", "owner"] + flagProvider.extra_fields
+        desired_fields = [self.tt_config.estimation_field, "summary", "owner", "type"]
         desired_fields = desired_fields + self.tt_config.iteration_fields
+        desired_fields = desired_fields + flagProvider.extra_fields
         # self.env.log.debug("TaskBoardMacro OPTIONS %s", options)
         # self.env.log.debug("TaskBoardMacro QUERY %s", query_args)
 
