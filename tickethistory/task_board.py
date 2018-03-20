@@ -39,13 +39,16 @@ class NoteFlagProvider:
         self.test_states = [ "testing" ]
 
     def getFlags( self, ticketInfo ):
-        status = ticketInfo.value_or( "status", "" )
         res = []
+
+        status = ticketInfo.value_or( "status", "" )
         if status in self.test_states:
             res.append(NoteFlag("Test", "flag-test"))
+
         component = ticketInfo.value_or( "component", None )
         if component is not None and len(component) > 0:
             res.append(NoteFlag(component[:6], "flag-component"))
+
         return res
 
 
@@ -57,6 +60,20 @@ class SortOrderProvider:
         tickets.sort( key=lambda ti: (ti.value_or( "component", "" ), ti.ticket['id']) )
 
 
+class NoteClassProvider:
+    def __init__( self ):
+        self.extra_fields = ["priority"]
+
+    def getClasses( self, ticketInfo ):
+        res = []
+
+        priority = ticketInfo.value_or( "priority", "" )
+        if len( priority ):
+            res.append( "priority-{}".format( priority ) )
+
+        return res
+
+
 class DebugDumpRenderer:
     def __init__( self, timetableConfig ):
         self.tt_config = timetableConfig
@@ -65,6 +82,9 @@ class DebugDumpRenderer:
         pass
 
     def setSortProvider( self, sortProvider ):
+        pass
+
+    def setNoteClassProvider( self, classProvider ):
         pass
 
     def render( self, tickets, env, formatter ):
@@ -100,6 +120,9 @@ class TracMarkupBoardRenderer:
         pass
 
     def setSortProvider( self, sortProvider ):
+        pass
+
+    def setNoteClassProvider( self, classProvider ):
         pass
 
     def render( self, tickets, env, formatter ):
@@ -163,6 +186,10 @@ class HtmlBoardRenderer:
     def setSortProvider( self, sortProvider ):
         self.sortProvider = sortProvider
 
+    def setNoteClassProvider( self, classProvider ):
+        self.classProvider = classProvider
+        pass
+
 
     def splitTicketsIntoColumns( self, tickets ):
         res = [ [] for c in self.columns ]
@@ -224,17 +251,23 @@ class HtmlBoardRenderer:
                 if estimate != "": estimate = "(%s)" % estimate
                 owner = t.value_or( "owner", "" ) if isInProgress( t ) else ""
                 summary = t.value_or( "summary", "" )
+
+                noteClass = ""
+                if self.classProvider is not None:
+                    noteClass = " ".join( self.classProvider.getClasses( t ) )
+
                 result.append( '''<div class="note-box">''' )
                 noteContent = '''
-                  <div class="note">
+                  <div class="note %s">
                   <span class="note-head">
                     <span class="ticket">%s</span>
                     <span class="estimate">%s</span>
                     <span class="owner">%s</span>
                   </span>
                   &nbsp;%s
-                  </div>''' % ( nameLink, estimate, owner, summary )
+                  </div>''' % ( noteClass, nameLink, estimate, owner, summary )
                 result.append( noteContent )
+
                 if self.flagProvider is not None:
                     self._renderFlags( t, result )
                 result.append( '</div>' ) # note-box
@@ -280,11 +313,13 @@ class TaskBoardMacro(WikiMacroBase):
 
         flagProvider = NoteFlagProvider()
         sortProvider = SortOrderProvider()
+        classProvider = NoteClassProvider();
 
         desired_fields = [self.tt_config.estimation_field, "summary", "owner", "type"]
         desired_fields = desired_fields + self.tt_config.iteration_fields
         desired_fields = desired_fields + flagProvider.extra_fields
         desired_fields = desired_fields + sortProvider.extra_fields
+        desired_fields = desired_fields + classProvider.extra_fields
         # self.env.log.debug("TaskBoardMacro OPTIONS %s", options)
         # self.env.log.debug("TaskBoardMacro QUERY %s", query_args)
 
@@ -309,4 +344,5 @@ class TaskBoardMacro(WikiMacroBase):
         renderer = HtmlBoardRenderer(self.tt_config)
         renderer.setFlagProvider( flagProvider )
         renderer.setSortProvider( sortProvider )
+        renderer.setNoteClassProvider( classProvider )
         return renderer.render( board_entry.tickets, self.env, formatter )
