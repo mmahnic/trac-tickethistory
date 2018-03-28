@@ -21,9 +21,10 @@ from tickethistory import options, dbutils, distributor
 from tickethistory import ticket_timetable as history
 
 class ColumnInfo:
-    def __init__( self, title, states ):
+    def __init__( self, title, states, cssClass="" ):
         self.title = title
         self.states = states
+        self.columnClass = cssClass
 
 
 class NoteFlag:
@@ -165,9 +166,9 @@ class HtmlBoardRenderer:
         self.sortProvider = None
         if self.columns is None:
             self.columns = [
-                    ColumnInfo( "New", timetableConfig.new_states ),
+                    ColumnInfo( "New", timetableConfig.new_states, "new_column" ),
                     ColumnInfo( "In progress", "*" ),
-                    ColumnInfo( "Done", timetableConfig.closed_states ) ]
+                    ColumnInfo( "Done", timetableConfig.closed_states, "done_column" ) ]
 
         # All the unmentioned states go to this column. The defult column is
         # the first column where ColumnInfo.states="*"
@@ -242,8 +243,9 @@ class HtmlBoardRenderer:
             if self.sortProvider is not None:
                 self.sortProvider.sortTicketInfos( colTickets )
 
-            result.append( '<div class="col-%d column">' % sizes[ic] )
-            result.append( '<h2 class="column-title">%s</h2>' % self.columns[ic].title )
+            colInfo = self.columns[ic]
+            result.append( '<div class="col-%d column %s">' % ( sizes[ic], colInfo.columnClass ) )
+            result.append( '<h2 class="column-title">%s</h2>' % colInfo.title )
             result.append( '<div class="column-content">' )
             for t in colTickets:
                 nameLink = HtmlBoardRenderer._ticketIdAddr( t )

@@ -42,11 +42,11 @@
    z-index: 2;
 }
 
-.tickethist-board .priority-blocker {
+.tickethist-board .note.priority-blocker {
    background-color: #fc9090;
 }
 
-.tickethist-board .priority-critical {
+.tickethist-board .note.priority-critical {
    background-color: #fcc0c0;
 }
 
@@ -102,6 +102,14 @@
    margin-right: 2px;
    background-color: #c0c0c0;
    font-size: 120%;
+}
+
+.tickethist-board .column.new_column .column-title {
+   background-color: #ffafac;
+}
+
+.tickethist-board .column.done_column .column-title {
+   background-color: #a4ef6b;
 }
 
 @media (min-width: 400px) {
