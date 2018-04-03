@@ -12,7 +12,7 @@ class TimetableConfig:
         self.estimation_field = "tm_estimate"
         self.iteration_fields = ["milestone"]
 
-	# A Story may have an estimation of 0SP but we would like to see some progress
+        # A Story may have an estimation of 0SP but we would like to see some progress
         # when it is done. We increase its estimate to this value when preparing the
         # burn-down table.
         self.min_estimation = 0.05
