@@ -78,7 +78,7 @@ class BurnDownTableGraphColumn:
 
         def estimate(tinfo, default=1):
             v = tinfo.value_or( self.tt_config.estimation_field, default )
-            try: return float(v) if v is not None else default
+            try: return max(float(v), self.tt_config.min_estimation) if v is not None else default
             except: return default
 
         for entry in self.timetable.entries:
@@ -176,7 +176,7 @@ class HtmlBurnDownTableRenderer:
 
         def estimate(tinfo, default=1):
             v = tinfo.value_or( self.tt_config.estimation_field, default )
-            try: return float(v) if v is not None else default
+            try: return max(float(v), self.tt_config.min_estimation) if v is not None else default
             except: return default
 
         for entry in entries:
