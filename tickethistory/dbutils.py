@@ -68,16 +68,16 @@ class MilestoneRetriever(Retriever):
 
 
     def get_ticket_ids_in_milestone( self, milestone ):
-        database = self.env.get_db_cnx()
-        tid_cursor = database.cursor()
-        tid_cursor.execute("SELECT "
-            "DISTINCT t.id "
-            "FROM ticket t LEFT JOIN ticket_change c "
-            "ON c.ticket = t.id "
-            "  WHERE (t.milestone=%s OR (field='milestone' AND (c.oldvalue=%s OR c.newvalue=%s) ) )"
-            "", [ milestone, milestone, milestone ])
+        with self.env.db_query as database:
+            tid_cursor = database.cursor()
+            tid_cursor.execute("SELECT "
+                "DISTINCT t.id "
+                "FROM ticket t LEFT JOIN ticket_change c "
+                "ON c.ticket = t.id "
+                "  WHERE (t.milestone=%s OR (field='milestone' AND (c.oldvalue=%s OR c.newvalue=%s) ) )"
+                "", [ milestone, milestone, milestone ])
 
-        return sorted( [int(row[0]) for row in tid_cursor] )
+            return sorted( [int(row[0]) for row in tid_cursor] )
 
 
     def retrieve( self, query_args, extra_columns=None ):

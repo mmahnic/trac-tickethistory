@@ -105,8 +105,8 @@ class Timetable:
 
 
 class HistoryBuilder:
-    def __init__(self, database, isInIteration ):
-        self.database = database
+    def __init__(self, env, isInIteration ):
+        self.env = env
         self.isInIteration = isInIteration if isInIteration is not None else lambda ticketInfo: True
 
         def invalid(msg) : raise Exception( msg )
@@ -157,30 +157,31 @@ class HistoryBuilder:
         settings = historySettings
         fields = settings.fields
 
-        history_cursor = self.database.cursor()
-        history_cursor.execute( settings.ticket_query_sql, [t['id']]  )
+        with self.env.db_query as database:
+            history_cursor = database.cursor()
+            history_cursor.execute( settings.ticket_query_sql, [t['id']]  )
 
-        earliest = { f : None for f in fields }
-        latest = { f : t.get(f) for f in fields }
-        # for every change register the new state { field:value }
-        history = { creation_time : { f : None for f in fields } }
+            earliest = { f : None for f in fields }
+            latest = { f : t.get(f) for f in fields }
+            # for every change register the new state { field:value }
+            history = { creation_time : { f : None for f in fields } }
 
-        # collect history for the ticket
-        for row in history_cursor:
-            row_field, row_time, row_old, row_new = row
-            event_time = self.timestamp_to_datetime(row_time)
-            if not event_time in history:
-                history[event_time] = {}
-            history[event_time][row_field] = row_new
-            if earliest[row_field] is None:
-                earliest[row_field] = row_old
+            # collect history for the ticket
+            for row in history_cursor:
+                row_field, row_time, row_old, row_new = row
+                event_time = self.timestamp_to_datetime(row_time)
+                if not event_time in history:
+                    history[event_time] = {}
+                history[event_time][row_field] = row_new
+                if earliest[row_field] is None:
+                    earliest[row_field] = row_old
 
-        # project missing values into creation_time
-        for f in fields:
-            if f not in history[creation_time] or history[creation_time][f] is None:
-                history[creation_time][f] = earliest[f] if earliest[f] is not None else latest[f]
+            # project missing values into creation_time
+            for f in fields:
+                if f not in history[creation_time] or history[creation_time][f] is None:
+                    history[creation_time][f] = earliest[f] if earliest[f] is not None else latest[f]
 
-        return history
+            return history
 
 
     # Add history entries for a single ticket to the timetable.

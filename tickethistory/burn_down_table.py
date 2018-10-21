@@ -257,7 +257,7 @@ class BurnDownTableMacro(WikiMacroBase):
 
         isInIteration = self.tt_config.getIsInIteration( query_args );
 
-        builder = history.HistoryBuilder( self.env.get_db_cnx(), isInIteration )
+        builder = history.HistoryBuilder( self.env, isInIteration )
         builder.timestamp_to_datetime = lambda ts: from_timestamp( ts )
         tickets = retriever.retrieve( query_args, desired_fields )
 
